@@ -1,0 +1,5 @@
+select a.部門番号 ,a.社員番号,
+case when exists (select 部門番号　from  部門 b where b.部門番号 = a.部門番号)
+    then 1 else 0 end as isrefred
+from 社員 a 
+where a.社員番号='7902'
