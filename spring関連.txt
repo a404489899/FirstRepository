@@ -1,0 +1,117 @@
+/***************************************
+ 開発プロジェクトのSpringMVCの設定方法 *
+***************************************/
+ web.xmlではDispatcherServletのみ設定
+ (servletname(web.xmlで設定した内容-servlet.xml)xxx.xmlでbeanを設定またはcomponentスキャンを設定している。
+
+
+<!-- HandlerMapping -->
+    <bean class="org.springframework.web.servlet.mvc.support.ControllerClassNameHandlerMapping" />
+    <bean class="org.springframework.jdbc.support.lob.DefaultLobHandler"></bean>
+
+<!-- ViewResolver -->
+<bean id="internalResourceViewResolver"
+        class="org.springframework.web.servlet.view.InternalResourceViewResolver">
+        <property name="prefix">
+            <value>/WEB-INF/jsp/</value>
+        </property>
+        <property name="suffix">
+            <value>.jsp</value>
+        </property>
+    </bean>
+
+<!-- Transaction -->
+    <bean id="transactionManager" class="org.springframework.jdbc.datasource.DataSourceTransactionManager">
+        <property name="dataSource" ref="dataSource" />
+    </bean>
+
+class="org.apache.tomcat.jdbc.pool.DataSource"
+
+
+@EnableWebMvc は　<mvc:annotation-driven />と同じ意味かも
+
+<context:component-scan> DIに自動登録	
+<context:component-scan> ： Bean登録+ <context:annotation-config>
+
+ <!-- 例外のハンドラクラス  -->
+    <bean class="jp.co.ctc.medical.chat.chatuser.exception.CommonExceptionResolver"/>
+
+<context:annotation-config> ： spring config xmlで既に登録されているBeanの注釈をスキャンしてアクティブ化します。
+
+
+
+/***************************************
+ プロパティファイル利用の場合          *
+***************************************/
+
+<bean id="applicationProperties class="org.springframework.beans.factory.config.PropertiesFactoryBean">
+
+<property name = "locations">
+	<list>
+		<value>classpath:application.properties</value>
+	</list>
+</property>
+<proprety name = "fileEncoding" value="UTF-8"/>
+</bean>
+/***************************************
+ メッセージソース利用の場合            *
+***************************************/
+<!-- Source -->
+  <bean id="messageSource" class="org.springframework.context.support.ReloadableResourceBundleMessageSource">
+      <property name="basename" value="/WEB-INF/messages" />
+      <property name="cacheSeconds" value="0" />
+      <property name="defaultEncoding" value="UTF-8" />
+  </bean>
+@Autowired
+MessageSource messageSource;
+/***************************************
+ トランザクション設定                  *
+***************************************/
+<!-- @Transactionalを使用するために定義 -->
+<tx:annotation-driven />
+
+
+/*********************************************************************************************
+@AutoWired
+※new instanceではAutowiredがされないため、ApplicationContextなどを利用してDIする必要がある。*
+**********************************************************************************************
+@AutoWiredを利用する場合,componetスキャンの設定が必要
+
+
+/*************************************
+データバインドのカスタマイズ         *
+**************************************
+
+	をcontrollerクラスに実装
+	@InitBinder("フィールド名")
+	public void initBinder(WebDataBinder binder){
+		binder.registerCustomEditor(Date.class,new CustomEditor(dateFormat,false));
+	}
+	
+	
+	複数のクラスに適用する場合は、@controllerAdvice　クラスにメソッドを実装する。
+	
+	
+	アノテーション利用
+	@DateTimeFormat(pattern="yyyyMMdd")
+	
+	@NumberFormat
+/*************************************
+responseヘッダーの追加               *
+**************************************
+
+ @RequestMapping(value = "/xml1", produces = "application/xml")
+ 
+ 定数を利用する場合
+ produces = MediaType.APPLICATION_XML_VALUE)
+ 
+/*************************************
+SpringMVCの設定                      *
+**************************************
+ ①の方法(javaベースで設定）
+ 	@configurationファイルを作成し、@EnableWebMvcを追加し、ViewResloverの設定も追加
+ 	web.xmlのDispatcherServletのcontextConfigLocationに設定を追加
+ ②の方法(xmlベース)
+ 	web.xmlに設定するservlet-nameに該当するXMLのファイルの設定
+ 	例：app-servlet.xml(WEB/INFの配下に作成)
+ 	

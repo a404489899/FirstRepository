@@ -1,0 +1,22 @@
+JAXB利用メモ
+
+・(String)xmlからJavaオブジェクトに変換
+
+	final JAXBContext reqeustUnmarshallerContext = JAXBContext
+                    .newInstance(変換先のjavaクラス.class);
+    final Unmarshaller unmarshaller = reqeustUnmarshallerContext.createUnmarshaller();
+    final InputStream is = new ByteArrayInputStream(conditions.getBytes("utf-8"));
+    final 変換先クラス 変数名 = unmarshaller
+                    .unmarshal(is);
+                    
+・JavaオブジェクトからXML
+
+	final JAXBContext resoponseMarshallerContext = JAXBContext
+                    .newInstance(変換もとのjavaクラス.class);
+    final Marshaller marshaller = resoponseMarshallerContext.createMarshaller();
+    marshaller.setProperty(Marshaller.JAXB_ENCODING, "UTF-8");
+    marshaller.setProperty(Marshaller.JAXB_FORMATTED_OUTPUT, true);
+
+    final ByteArrayOutputStream baos = new ByteArrayOutputStream();
+    marshaller.marshal(変換もとのJavaクラス変数, baos);
+    result = new String(baos.toByteArray());
