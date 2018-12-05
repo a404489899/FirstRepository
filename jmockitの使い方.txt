@@ -1,0 +1,2719 @@
+
+
+ログイン
+
+299
+
+0
+opengl-8080
+@opengl-8080
+2016年12月13日に更新
+JMockit使い方メモ
+Java
+jMockit
+この記事は最終更新日から1年以上が経過しています。
+JMockit の使い方メモ。
+
+まとめといて何だけど、 JMockit が提供している強力な機能はなるべく使わないで済むように設計（実装）することが、理想的なんだろうなと思うわけです。
+（たぶん、 JMockit の機能を下手に使いすぎると、可読性が落ちて、テストコードのメンテナンスも大変になりそうな気がする）
+
+でも、いざテスト困難な実装とぶち当たったときに備えて、ひと通り機能は知っておいた方がいいとも思うわけです。
+
+※このメモは ver1.6 の頃のもので 2016年 12 月現在の最新（ver 1.29）とは異なる点が多数あると思われます。JMockit は API の非推奨化→削除もかなり頻繁に行われているようなので、中には最新版では使えなくなっているものもあるのでご注意ください。
+
+環境
+Java
+1.7.0_40
+
+JMockit
+1.6
+
+※一部 1.21 で確認
+
+インストール
+jar のダウンロード
+直接 jar をダウンロードする場合は、 ここ からダウンロードする。
+
+maven などを使っている場合は、セントラルリポジトリから落とす。
+
+1.8より前
+testCompile 'com.googlecode.jmockit:jmockit:1.6'
+※ver 1.8 からグループID が com.googlecode.jmockit から org.jmockit に変わってます。
+
+1.8以降
+testCompile 'org.jmockit:jmockit:1.21'
+クラスパスに追加する
+JDK1.6 以上 かつ JUnit 4.5 以上の場合
+JMockit の jar が JUnit の jar より先に読み込まれるようにクラスパスを設定する。
+
+それ以外の場合
+JDK が 1.5 とかいう残念な環境だったりする場合は、 JVM の引数に以下を追加する。
+
+-javaagent:<jmockit.jar へのパス>
+
+モック
+モックの特徴
+モック化されたオブジェクトのメソッドが返す値
+Hoge.java
+package sample.jmockit;
+
+public class Hoge {
+
+    public Fuga getFuga() {
+        return null;
+    }
+
+    public String getString() {
+        return "HOGE";
+    }
+
+    public Object getObject() {
+        return new Object();
+    }
+
+    public Collection<?> getCollection() {
+        return null;
+    }
+
+    public int getInt() {
+        return Integer.MAX_VALUE;
+    }
+}
+Fuga.java
+package sample.jmockit;
+
+public class Fuga {
+
+    @Override
+    public String toString() {
+        return "FUGA";
+    }
+}
+JMockitTest.java
+package sample.jmockit;
+
+import org.junit.Test;
+
+import mockit.Mocked;
+
+public class JMockitTest {
+
+    @Mocked
+    private Hoge hoge;
+
+    @Test
+    public void test() throws Exception {
+        System.out.println(this.hoge.getFuga());
+        System.out.println(this.hoge.getString());
+        System.out.println(this.hoge.getObject());
+        System.out.println(this.hoge.getCollection());
+        System.out.println(this.hoge.getInt());
+    }
+}
+実行結果
+sample.jmockit.Fuga@490d6c15
+null
+null
+[]
+0
+モック化されたオブジェクトのメソッドがなんらかのオブジェクトを返す場合、そのオブジェクトも自動的にモック化されたものになる。
+getFuga() で取得した Fuga オブジェクトがモック化されている。
+Fuga#toString() の動作が本来の実装と違っているので、モック化されていることが分かる。
+これをカスケーディング（Cascading）と呼ぶ。
+以前は @Cascading というアノテーションで明示的に指定しなければならなかったが、 ver 1.14 からデフォルトでカスケーディングが有効になった。
+ただし、 String と Object を返すメソッドの場合は null を返す。
+また、コレクションを返すメソッドの場合はモック化されていない空のコレクションを返す。
+それ以外はデフォルト値（int や long なら 0, boolean なら false など）を返す。
+本来の実装は一切実行されなくなる。
+モックが返す値を null にしたい場合
+JMockitTest.java
+package sample.jmockit;
+
+import org.junit.Test;
+
+import mockit.Mocked;
+import mockit.NonStrictExpectations;
+
+public class JMockitTest {
+
+    @Mocked
+    private Hoge hoge;
+
+    @Test
+    public void test() throws Exception {
+        new NonStrictExpectations() {{
+            hoge.getFuga(); result = null;
+        }};
+
+        System.out.println(this.hoge.getFuga());
+    }
+}
+実行結果
+null
+カスケーディングで自動的にモックが返るのを止めたい場合は、 Expectations を使って明示的に戻り値を null にする。
+result の動作も以前調べたときとは変わっているので こちら を参照。
+final 修飾されたメソッドもモック化される
+Parent.java
+package sample.jmockit;
+
+public class Parent {
+
+    public static String PARENT_CLASS_FIELD = "parent class field";
+    public String parentInstanceField = "parent instance field";
+
+    public static String parentClassMethod() {
+        return "Parent#parentClassMethod()";
+    }
+
+    public String parentInstanceMethod() {
+        return "Parent#parentInstanceMethod()";
+    }
+}
+Child.java
+package sample.jmockit;
+
+public class Child extends Parent {
+
+    public static int CLASS_FIELD = -1;
+    public int instanceField = -1;
+
+    public static int classMethod() {
+        return -1;
+    }
+
+    public int instanceMethod() {
+        return -1;
+    }
+
+    public final int finalInstanceMethod() {
+        return -1;
+    }
+}
+package sample.jmockit;
+
+import mockit.Mocked;
+
+import org.junit.Test;
+
+public class JmockitTest {
+
+    @Mocked private Child child;
+
+    @Test
+    public void test() {
+        System.out.println("finalInstanceMethod() = " + child.finalInstanceMethod());
+    }
+}
+実行結果
+finalInstanceMethod() = 0
+final 修飾されたメソッドもモック化される。
+インスタンスフィールドもデフォルト値になる
+package sample.jmockit;
+
+import mockit.Mocked;
+
+import org.junit.Test;
+
+public class JmockitTest {
+
+    @Mocked private Child child;
+
+    @Test
+    public void test() {
+        System.out.println("instanceField = " + child.instanceField);
+        System.out.println("parentInstanceField = " + child.parentInstanceField);
+        System.out.println("CLASS_FIELD = " + Child.CLASS_FIELD);
+        System.out.println("PARENT_CLASS_FIELD = " + Child.PARENT_CLASS_FIELD);
+    }
+}
+実行結果
+instanceField = 0
+parentInstanceField = null
+CLASS_FIELD = -1
+PARENT_CLASS_FIELD = parent class field
+モック化されると、インスタンスフィールドもデフォルト値が設定されるようになる。
+でも、クラスフィールドは変化しない。
+コンストラクタはモックオブジェクトを返すようになる
+package sample.jmockit;
+
+import mockit.Mocked;
+
+import org.junit.Test;
+
+public class JmockitTest {
+
+    @Mocked private Child mock;
+
+    @Test
+    public void test() {
+        Child child = new Child();
+        System.out.println("child.instanceMethod() = " + child.instanceMethod());
+
+        Parent parent = new Parent();
+        System.out.println("parent.parentInstanceMethod() = " + parent.parentInstanceMethod());
+
+        System.out.println("(this.mock == child) = " + (this.mock == child));
+    }
+}
+実行結果
+child.instanceMethod() = 0
+parent.parentInstanceMethod() = Parent#parentInstanceMethod()
+(this.mock == child) = false
+モック化されたクラスのコンストラクタは、 新しいモックオブジェクト を返すようになる。
+親クラスのコンストラクタはそのまま。
+モックを定義する方法
+テストクラスのインスタンスフィールドで @Mocked アノテーションを使う
+JmockitTest.java
+package sample.jmockit;
+
+import mockit.Mocked;
+
+import org.junit.Test;
+import org.junit.experimental.runners.Enclosed;
+import org.junit.runner.RunWith;
+
+@RunWith(Enclosed.class)
+public class JmockitTest {
+
+    public static class TestClass1 {
+        @Mocked private Child child;
+
+        @Test
+        public void test1() {
+            Child child = new Child();
+            System.out.println("TestClass1#test1() : " + child.instanceMethod());
+        }
+
+        @Test
+        public void test2() {
+            Child child = new Child();
+            System.out.println("TestClass1#test2() : " + child.instanceMethod());
+        }
+    }
+
+    public static class TestClass2 {
+        @Test
+        public void test1() {
+            Child child = new Child();
+            System.out.println("TestClass2#test1() : " + child.instanceMethod());
+        }
+    }
+}
+実行結果
+TestClass1#test1() : 0
+TestClass1#test2() : 0
+TestClass2#test1() : -1
+テストクラスのインスタンスフィールドに @Mocked アノテーションをつけると、そのクラスはモック化される。
+@Mocked アノテーションをつけたフィールドには、モックオブジェクトが自動でセットされる。
+モックオブジェクトは、そのテストクラス内のテストメソッドでのみ有効。
+テストメソッドの引数で定義する
+JmockitTest.java
+package sample.jmockit;
+
+import mockit.Mocked;
+
+import org.junit.Test;
+
+public class JmockitTest {
+
+    @Test
+    public void test1(@Mocked Child child) {
+        Child mock = new Child();
+        System.out.println("test1() : " + mock.instanceMethod());
+    }
+
+    @Test
+    public void test2() {
+        Child child = new Child();
+        System.out.println("test2() : " + child.instanceMethod());
+    }
+}
+実行結果
+test1() : 0
+test2() : -1
+テストメソッドに引数を定義すると、その引数のクラスがモック化される。
+@Mocked アノテーションは省略可能（でも警告がでる）。
+モックは、そのメソッド内のみ有効。
+@Injectable で特定のインスタンスだけモック化する
+ver 1.21 で動作確認
+
+Hoge.java
+package sample.jmockit;
+
+public class Hoge {
+
+    public String getString() {
+        return "HOGE";
+    }
+}
+JMockitTest.java
+package sample.jmockit;
+
+import org.junit.Test;
+
+import mockit.Injectable;
+
+public class JMockitTest {
+
+    @Injectable
+    private Hoge hoge;
+
+    @Test
+    public void test() throws Exception {
+        System.out.println(this.hoge.getString());
+        System.out.println(new Hoge().getString());
+    }
+}
+実行結果
+null
+HOGE
+@Injectable でアノテートしたフィールドだけがモック化される。
+それ以外の場所で別途 new したインスタンスはモックかされない。
+@Tested でテスト対象のインスタンスを生成する
+ver 1.21 で動作確認
+
+基本
+Hoge.java
+package sample.jmockit;
+
+public class Hoge {
+
+    private Hoge() {
+        System.out.println("Hoge Constructor");
+    }
+
+    @Override
+    public String toString() {
+        return "HOGE";
+    }
+}
+JMockitTest.java
+package sample.jmockit;
+
+import org.junit.Test;
+
+import mockit.Tested;
+
+public class JMockitTest {
+
+    @Tested
+    private Hoge hoge;
+
+    @Test
+    public void test() throws Exception {
+        System.out.println(this.hoge);
+    }
+}
+実行結果
+Hoge Constructor
+HOGE
+@Tested でフィールドをアノテートすると、そのインスタンスが自動的に生成されてインジェクションされる。
+テスト対象クラスのインスタンスを生成するのに使用する。
+このクラスはモック化されていない、普通のインスタンスになる。
+インスタンスの生成はデフォルトコンストラクタを使用する。
+private で問題ない。
+デフォルトコンストラクタが存在しないとエラーになる。
+ただし、 @Injectable で宣言されたクラスが存在する場合は少し条件が変わる（詳細後述）。
+テスト対象クラスがフィールドを持つ場合
+Hoge.java
+package sample.jmockit;
+
+public class Hoge {
+
+    private Fuga fuga;
+    private Piyo piyo;
+    private String string;
+
+    public void print() {
+        System.out.println("fuga=" + this.fuga);
+        System.out.println("piyo=" + this.piyo);
+        System.out.println("string=" + this.string);
+    }
+}
+Fuga.java
+package sample.jmockit;
+
+public class Fuga {
+
+    @Override
+    public String toString() {
+        return "FUGA";
+    }
+}
+Piyo.java
+package sample.jmockit;
+
+public class Piyo {
+}
+JMockitTest.java
+package sample.jmockit;
+
+import org.junit.Test;
+
+import mockit.Injectable;
+import mockit.Mocked;
+import mockit.NonStrictExpectations;
+import mockit.Tested;
+
+public class JMockitTest {
+
+    @Tested
+    private Hoge hoge;
+    @Injectable
+    private Fuga fuga;
+    @Mocked
+    private Piyo piyo;
+
+    @Test
+    public void test() throws Exception {
+        new NonStrictExpectations() {{
+            fuga.toString(); result = "Mocked Fuga";
+        }};
+
+        this.hoge.print();
+    }
+}
+実行結果
+fuga=Mocked Fuga
+piyo=null
+string=null
+@Tested でアノテートされたテスト対象クラスが、 @Injectable でアノテートされたものと同じ型のフィールドを持つ場合、自動的にモックがインジェクションされる。
+コンストラクタの条件
+デフォルトコンストラクタが
+存在する：OK
+存在しない
+@Injetable 対象のクラスを引数に受け取るコンストラクタが
+存在する：OK
+存在しない：NG
+Expectations
+Hoge.java
+package sample.jmockit;
+
+public class Hoge {
+    public String method() {
+        return "hoge";
+    }
+
+    public String method(String parameter) {
+        return parameter;
+    }
+}
+package sample.jmockit;
+
+import mockit.Expectations;
+import mockit.Mocked;
+
+import org.junit.Test;
+
+public class JmockitTest {
+
+    @Mocked private Hoge hoge;
+
+    @Test
+    public void 記録した通りにメソッドが実行されるので_テストは成功する() {
+        new Expectations() {{
+            hoge.method("hoge");
+        }};
+
+        hoge.method("hoge");
+    }
+
+    @Test
+    public void 記録した通りの引数でメソッドが実行されないので_テストは失敗する() {
+        new Expectations() {{
+            hoge.method("hoge");
+        }};
+
+        hoge.method("fuga");
+    }
+
+    @Test
+    public void 記録した通りの順番でメソッドが実行されないので_テストは失敗する() {
+        new Expectations() {{
+            hoge.method();
+            hoge.method("hoge");
+        }};
+
+        hoge.method("hoge");
+        hoge.method();
+    }
+
+    @Test
+    public void 記録で使用したインスタンスでメソッドが実行されないので_テストは失敗する() {
+        new Expectations() {{
+            hoge.method();
+        }};
+
+        Hoge other = new Hoge();
+        other.method();
+    }
+
+    @Test
+    public void 記録した回数と実行した回数が異なるので_テストは失敗する() {
+        new Expectations() {{
+            hoge.method();
+        }};
+
+        hoge.method();
+        hoge.method();
+    }
+}
+Expectations を使うと、期待するメソッドの実行を記録することができる。
+メソッドを呼んだインスタンス、引数の値、呼び出し回数、呼び出し順序などが 厳密に記録した通りに 実行されないと、テストは失敗する。
+NonStrictExpectations
+package sample.jmockit;
+
+import mockit.Mocked;
+import mockit.NonStrictExpectations;
+
+import org.junit.Test;
+
+public class JmockitTest {
+
+    @Mocked private Hoge hoge;
+
+    @Test
+    public void 記録したメソッドが実行されなくても_テストは成功する() {
+        new NonStrictExpectations() {{
+            hoge.method();
+        }};
+    }
+
+    @Test
+    public void 指定した通りの引数で実行しなくても_テストは成功する() {
+        new NonStrictExpectations() {{
+            hoge.method("hoge");
+        }};
+
+        hoge.method("fuga");
+    }
+
+    @Test
+    public void 記録で使用したインスタンスで実行されなくても_テストは成功する() {
+        new NonStrictExpectations() {{
+            hoge.method();
+        }};
+
+        Hoge other = new Hoge();
+        other.method();
+    }
+
+    @Test
+    public void 記録した回数と実行した回数が異なっていても_テストは成功する() {
+        new NonStrictExpectations() {{
+            hoge.method();
+        }};
+
+        hoge.method();
+        hoge.method();
+    }
+}
+基本的には Expectations と同じ要領で使える。
+Expectations とは異なり、指定した通りにメソッドが実行されなくても、テストは成功する。
+主に、スタブを作成したいときなどに利用する。
+※NonStrictExpectations は ver1.23 で非推奨となり、 ver1.25 で削除されました。Expectations の期待操作実行回数を minTimes = 0 とすることで NonStrictExpectations を代替できます（@7tsuno さんの編集リクエストをベースに追記しました。ありがとうございます！）。
+
+期待する動作を記録する
+package sample.jmockit;
+
+import mockit.Expectations;
+import mockit.Mocked;
+
+import org.junit.Test;
+
+public class JmockitTest {
+
+    @Mocked private Hoge hoge;
+
+    @Test
+    public void test() {
+        new Expectations() {{
+            hoge.method();
+        }};
+    }
+}
+実行結果
+mockit.internal.MissingInvocation: Missing invocation of:
+sample.jmockit.Hoge#method()
+   on mock instance: sample.jmockit.Hoge@32e701fb
+（以下略）
+Expectations または NonStrictExpectations の匿名サブクラスを定義し、そのオブジェクト初期化ブロック内でモックオブジェクトのメソッドを実行する。
+上記例の場合、記録したメソッドがテストメソッド内で実行されていないので、テストが失敗している。
+期待される動作の実行回数を指定する
+package sample.jmockit;
+
+import mockit.Expectations;
+import mockit.Mocked;
+import org.junit.Test;
+
+public class JmockitTest {
+    @Mocked
+    private Hoge hoge;
+
+    @Test
+    public void test() {
+        new Expectations() {
+            {
+                hoge.method();
+                times = 3;
+            }
+        };
+        hoge.method();
+        hoge.method();
+        hoge.method();
+    }
+}
+メソッドを記録した直後に、 times フィールドに数値を代入すると、記録したメソッドが実行されなければならない回数を指定できる。
+Expectations で times を指定していない場合は、 times = 1 を指定したことと同じになる。
+１回も実行されない ことを期待したい場合は times = 0 と指定する。
+times に負数を指定すると、回数のチェックは行われなくなる。
+最小回数を指定する
+package sample.jmockit;
+
+import mockit.Expectations;
+import mockit.Mocked;
+import org.junit.Test;
+
+public class JmockitTest {
+    @Mocked
+    private Hoge hoge;
+
+    @Test
+    public void test() {
+        new Expectations() {
+            {
+                hoge.method();
+                minTimes = 2;
+            }
+        };
+        hoge.method();
+        hoge.method();
+        hoge.method();
+    }
+}
+minTimes に値を代入すると、「最低でも実行されなければならない回数」を指定できる。
+最大回数を指定する
+package sample.jmockit;
+
+import mockit.Expectations;
+import mockit.Mocked;
+import org.junit.Test;
+
+public class JmockitTest {
+    @Mocked
+    private Hoge hoge;
+
+    @Test
+    public void test() {
+        new Expectations() {
+            {
+                hoge.method();
+                maxTimes = 2;
+            }
+        };
+        hoge.method();
+        hoge.method();
+    }
+}
+maxTimes に値を代入すると、「実行されて良い最大の回数」を指定できる。
+maxTimes を指定して１回もメソッドを実行しない場合は、テストが失敗する。
+minTimes と maxTimes を組み合わせて使用する
+package sample.jmockit;
+
+import mockit.Expectations;
+import mockit.Mocked;
+import org.junit.Test;
+
+public class JmockitTest {
+    @Mocked
+    private Hoge hoge;
+
+    @Test
+    public void test() {
+        new Expectations() {
+            {
+                hoge.method();
+                minTimes = 1;
+                maxTimes = 3;
+            }
+        };
+        hoge.method();
+        hoge.method();
+    }
+}
+minTimes と maxTimes は組み合わせて使用できる。
+上記例の場合、 1 ～ 3 回は実行されることが期待されるようになる。
+メソッドの動作をダミーに差し替える
+メソッドの戻り値を指定する
+package sample.jmockit;
+
+import mockit.Expectations;
+import mockit.Mocked;
+import org.junit.Test;
+
+public class JmockitTest {
+    @Mocked
+    private Hoge hoge;
+
+    @Test
+    public void test() {
+        new Expectations() {
+            {
+                hoge.method();
+                result = "mock";
+            }
+        };
+        System.out.println("hoge.method() = " + hoge.method());
+    }
+}
+実行結果
+hoge.method() = mock
+メソッドを記録した直後に、 result フィールドに値を代入すると、記録したメソッドの戻り値を指定できる。
+コンストラクタの戻り値は指定できない
+package sample.jmockit;
+
+import mockit.Expectations;
+import mockit.Mocked;
+import org.junit.Test;
+
+public class JmockitTest {
+    @Mocked
+    private Hoge hoge;
+
+    @Test
+    public void test() {
+        new Expectations() {
+            {
+                new Hoge();
+                result = hoge;
+            }
+        };
+        System.out.println("(this.hoge == new Hoge()) = " + (this.hoge == new Hoge()));
+    }
+}
+実行結果
+(this.hoge == new Hoge()) = false
+メソッドを実行するたびに異なる値を返すようにする
+【この方法は最新版では使えません】result に連続して値を代入する
+追記：この方法は最新版（ver 1.21 で確認）では使えなくなっています。代わりに returns() メソッド を使用してください。
+
+package sample.jmockit;
+
+import mockit.Expectations;
+import mockit.Mocked;
+import mockit.NonStrictExpectations;
+import org.junit.Test;
+
+public class JmockitTest {
+    @Mocked
+    private Hoge hoge;
+
+    @Test
+    public void test() {
+        new NonStrictExpectations() {
+            {
+                hoge.method();
+                result = "1";
+                result = "2";
+                result = "3";
+            }
+        };
+        System.out.println("hoge.method() = " + hoge.method());
+        System.out.println("hoge.method() = " + hoge.method());
+        System.out.println("hoge.method() = " + hoge.method());
+        System.out.println("hoge.method() = " + hoge.method());
+    }
+}
+実行結果（1.21での動作）
+hoge.method() = 3
+hoge.method() = 3
+hoge.method() = 3
+hoge.method() = 3
+最後に記録した値が常に返される。
+実行結果（1.6の頃の動作）
+hoge.method() = 1
+hoge.method() = 2
+hoge.method() = 3
+hoge.method() = 3
+result に続けて値を代入すると、メソッドの実行回数に合わせて戻り値を切り替えることができる。
+result に代入した回数以上にメソッドを実行すると、最後に result に代入した値が return され続ける。
+returns() メソッドを使う
+package sample.jmockit;
+
+import mockit.Mocked;
+import mockit.NonStrictExpectations;
+import org.junit.Test;
+
+public class JmockitTest {
+    @Mocked
+    private Hoge hoge;
+
+    @Test
+    public void test() {
+        new NonStrictExpectations() {
+            {
+                hoge.method();
+                returns("a", "b", "c");
+            }
+        };
+        System.out.println("hoge.method() = " + hoge.method());
+        System.out.println("hoge.method() = " + hoge.method());
+        System.out.println("hoge.method() = " + hoge.method());
+        System.out.println("hoge.method() = " + hoge.method());
+    }
+}
+実行結果
+hoge.method() = a
+hoge.method() = b
+hoge.method() = c
+hoge.method() = c
+returns() メソッドを使えば、引数に渡した順序で戻り値が返されるようになる。
+result に配列（リスト）を代入する
+package sample.jmockit;
+
+import mockit.Expectations;
+import mockit.Mocked;
+import mockit.NonStrictExpectations;
+import org.junit.Test;
+
+public class JmockitTest {
+    @Mocked
+    private Hoge hoge;
+
+    @Test
+    public void test() {
+        new NonStrictExpectations() {
+            {
+                hoge.method();
+                result = new String[] { "A", "B", "C" };
+            }
+        };
+        System.out.println("hoge.method() = " + hoge.method());
+        System.out.println("hoge.method() = " + hoge.method());
+        System.out.println("hoge.method() = " + hoge.method());
+        System.out.println("hoge.method() = " + hoge.method());
+    }
+}
+実行結果
+hoge.method() = A
+hoge.method() = B
+hoge.method() = C
+hoge.method() = C
+result に配列またはリストを代入すると、 result に複数回代入するのと同じことができる
+ただし、記録したメソッドが配列やリストを返す場合は使えない。
+メソッドを実行したら例外をスローするように指定する
+package sample.jmockit;
+
+import mockit.Expectations;
+import mockit.Mocked;
+import org.junit.Test;
+
+public class JmockitTest {
+    @Mocked
+    private Hoge hoge;
+
+    @Test
+    public void test() {
+        new Expectations() {
+            {
+                hoge.method();
+                result = new NullPointerException("sample");
+            }
+        };
+        hoge.method();
+    }
+}
+実行結果
+java.lang.NullPointerException: sample
+    at sample.jmockit.Hoge.method(Hoge.java)
+（以下略）
+result に例外オブジェクトを代入すると、直前に記録したメソッドを実行したときに代入した例外がスローされる。
+returns() で例外をスローするように指定することはできない
+package sample.jmockit;
+
+import mockit.Expectations;
+import mockit.Mocked;
+import org.junit.Test;
+
+public class JmockitTest {
+    @Mocked
+    private Hoge hoge;
+
+    @Test
+    public void test() {
+        new Expectations() {
+            {
+                hoge.method();
+                returns("hoge", new NullPointerException("sample"));
+            }
+        };
+        System.out.println(hoge.method());
+        System.out.println(hoge.method());
+    }
+}
+実行結果
+java.lang.ClassCastException: java.lang.NullPointerException cannot be cast to java.lang.String
+    at sample.jmockit.Hoge.method(Hoge.java)
+（以下略）
+NullPointerException を Hoge#method() の戻り値型である String にキャストしようとして ClassCastException が発生してしまう。
+Delegate を使ってモック化したメソッドの動作を指定する
+package sample.jmockit;
+
+import mockit.Delegate;
+import mockit.Mocked;
+import mockit.NonStrictExpectations;
+import org.junit.Test;
+
+public class JmockitTest {
+    @Mocked
+    private Hoge hoge;
+
+    @Test
+    public void test() {
+        new NonStrictExpectations() {
+            {
+                hoge.method("hoge");
+                result = new Delegate<String>() {
+                    public String delegate(String parameter) {
+                        System.out.println("[Delegate] parameter = " + parameter);
+                        return "delegate mock";
+                    }
+                };
+            }
+        };
+        System.out.println("hoge.method(\"hoge\") = " + hoge.method("hoge"));
+    }
+}
+実行結果
+[Delegate] parameter = hoge
+hoge.method("hoge") = delegate mock
+result に Delegate クラスのオブジェクトを渡すと、直前に記録したメソッドが呼ばれた際に Delegate オブジェクトで定義されたメソッド（仮に Delegate メソッド と呼ぶ）が実行される。
+Delegate メソッドの可視性は非 private である必要がある。
+非 private なメソッドが複数存在すると、実行時にエラーになる。
+Delegate メソッドの名前は何でも良い。
+Delegate メソッドの引数は、使用しないなら宣言しなくても良い。
+Delegate メソッドの戻り値の型は void でも良い（その場合、モックメソッドは null を返す）。
+Delegate メソッドの戻り値の型と、記録したメソッドの戻り値の型が一致しない場合、実行時に ClassCastException が発生する。
+引数のマッチング
+基本
+package sample.jmockit;
+
+import mockit.Mocked;
+import mockit.NonStrictExpectations;
+import org.junit.Test;
+
+public class JmockitTest {
+    @Mocked
+    private Hoge hoge;
+
+    @Test
+    public void test() {
+        new NonStrictExpectations() {
+            {
+                hoge.method("hoge");
+                result = "mock";
+            }
+        };
+        System.out.println("hoge.method(\"hoge\") = " + hoge.method("hoge"));
+        System.out.println("hoge.method(\"fuga\") = " + hoge.method("fuga"));
+    }
+}
+実行結果
+hoge.method("hoge") = mock
+hoge.method("fuga") = null
+記録時に使用したメソッドの引数も、検証のときのマッチングで対象となる。
+result で指定した値は、引数も含め記録したとおりにメソッドが実行された場合に限り適用される。
+any オブジェクトを使って任意の引数にマッチさせる
+package sample.jmockit;
+
+import mockit.Expectations;
+import mockit.Mocked;
+import org.junit.Test;
+
+public class JmockitTest {
+    @Mocked
+    private Hoge hoge;
+
+    @Test
+    public void test() {
+        new Expectations() {
+            {
+                hoge.method(anyString);
+                result = "1";
+                result = "2";
+            }
+        };
+        System.out.println("hoge.method(\"hoge\") = " + hoge.method("hoge"));
+        System.out.println("hoge.method(\"fuga\") = " + hoge.method("fuga"));
+    }
+}
+実行結果
+hoge.method("hoge") = 1
+hoge.method("fuga") = 2
+Expectations および NonStrictExpectations には any～ というインスタンスフィールドが定義されており、それを記録時の引数に使用すると、任意の値にマッチさせることができる。
+any～ は次の３種類が定義されている。
+プリミティブ型（anyInt 、 anyBoolean など）
+String 型（anyString）
+Object 型（any）
+「プリミティブ型」・「String 型」以外のクラスのオブジェクトにマッチさせたい場合は (Hoge)any というふうに、 Object 型の any をキャストして使用する。
+with～() メソッドを使ってマッチングする
+with(Object)
+package sample.jmockit;
+
+import static org.hamcrest.Matchers.*;
+import mockit.Expectations;
+import mockit.Mocked;
+import org.junit.Test;
+
+public class JmockitTest {
+    @Mocked
+    private Hoge hoge;
+
+    @Test
+    public void test() {
+        new Expectations() {
+            {
+                hoge.method((String) with(not("hoge")));
+                result = "mock";
+            }
+        };
+        System.out.println("hoge.method(\"fuga\") = " + hoge.method("fuga"));
+    }
+}
+実行結果
+hoge.method("fuga") = mock
+Hamcrest の Matcher を使って引数をマッチングさせることができる。
+withAny(T)
+package sample.jmockit;
+
+import mockit.Expectations;
+import mockit.Mocked;
+import org.junit.Test;
+
+public class JmockitTest {
+    @Mocked
+    private Hoge hoge;
+
+    @Test
+    public void test() {
+        new Expectations() {
+            {
+                hoge.method(withAny("any string"));
+                result = "mock";
+            }
+        };
+        System.out.println("hoge.method(\"test\") = " + hoge.method("test"));
+    }
+}
+実行結果
+hoge.method("test") = mock
+withAny() の引数に渡したインスタンスと同じクラス、またはそのサブクラスのインスタンスを渡した場合にマッチする。
+withEqual(double, double)
+package sample.jmockit;
+
+import mockit.Expectations;
+import mockit.Mocked;
+import org.junit.Test;
+
+public class JmockitTest {
+    @Mocked
+    private Fuga fuga;
+
+    @Test
+    public void test() {
+        new Expectations() {
+            {
+                fuga.method(withEqual(1.0, 0.5));
+                result = "mock";
+            }
+        };
+        System.out.println("fuga.method(1.5) = " + fuga.method(1.5));
+    }
+
+    public static class Fuga {
+        public String method(double d) {
+            return "fuga";
+        }
+    }
+}
+実行結果
+fuga.method(1.5) = mock
+第一引数で基準となる値を指定し、第二引数でモック化の対象となる前後の範囲を指定する。
+上記例の場合 0.5 ～ 1.5 がマッチする。
+float 版もある。
+withInstanceOf(Class)
+package sample.jmockit;
+
+import mockit.Expectations;
+import mockit.Mocked;
+import org.junit.Test;
+
+public class JmockitTest {
+    @Mocked
+    private Fuga fuga;
+
+    @Test
+    public void test() {
+        new Expectations() {
+            {
+                fuga.method(withInstanceOf(Parent.class));
+                result = "mock";
+            }
+        };
+        System.out.println("fuga.method(new Child()) = " + fuga.method(new Child()));
+    }
+
+    public static class Fuga {
+        public String method(Parent parent) {
+            return "fuga";
+        }
+    }
+
+    public static class Parent {
+    }
+
+    public static class Child extends Parent {
+    }
+}
+実行結果
+fuga.method(new Child()) = mock
+指定したクラス、またはそのサブクラスのインスタンスを渡した場合にマッチする。
+withNotEqual(T)
+package sample.jmockit;
+
+import mockit.Expectations;
+import mockit.Mocked;
+import org.junit.Test;
+
+public class JmockitTest {
+    @Mocked
+    private Hoge hoge;
+
+    @Test
+    public void test() {
+        new Expectations() {
+            {
+                hoge.method(withNotEqual("hoge"));
+                result = "mock";
+            }
+        };
+        System.out.println("hoge.method(\"fuga\") = " + hoge.method("fuga"));
+    }
+}
+実行結果
+hoge.method("fuga") = mock
+指定した値 ではない 値が渡された場合にマッチする。
+withNotNull()
+package sample.jmockit;
+
+import mockit.Expectations;
+import mockit.Mocked;
+import org.junit.Test;
+
+public class JmockitTest {
+    @Mocked
+    private Hoge hoge;
+
+    @Test
+    public void test() {
+        new Expectations() {
+            {
+                hoge.method((String) withNotNull());
+                result = "mock";
+            }
+        };
+        System.out.println("hoge.method(\"some string\") = " + hoge.method("some string"));
+    }
+}
+実行結果
+hoge.method("some string") = mock
+null でない値が渡された場合にマッチする。
+<T extends CharSequence> withMatch(T)
+package sample.jmockit;
+
+import mockit.Expectations;
+import mockit.Mocked;
+import org.junit.Test;
+
+public class JmockitTest {
+    @Mocked
+    private Hoge hoge;
+
+    @Test
+    public void test() {
+        new Expectations() {
+            {
+                hoge.method(withMatch("[0-9]+"));
+                result = "mock";
+            }
+        };
+        System.out.println("hoge.method(\"321\") = " + hoge.method("321"));
+    }
+}
+実行結果
+hoge.method("321") = mock
+正規表現でマッチするパターンを指定する。
+<T extends CharSequence> withPrefix(T)
+package sample.jmockit;
+
+import mockit.Expectations;
+import mockit.Mocked;
+import org.junit.Test;
+
+public class JmockitTest {
+    @Mocked
+    private Hoge hoge;
+
+    @Test
+    public void test() {
+        new Expectations() {
+            {
+                hoge.method(withPrefix("hoge"));
+                result = "mock";
+            }
+        };
+        System.out.println("hoge.method(\"hogeString\") = " + hoge.method("hogeString"));
+    }
+}
+実行結果
+hoge.method("hogeString") = mock
+指定した文字で始まる文字列を渡した場合にマッチする。
+<T extends CharSequence> withSuffix(T)
+package sample.jmockit;
+
+import mockit.Expectations;
+import mockit.Mocked;
+import org.junit.Test;
+
+public class JmockitTest {
+    @Mocked
+    private Hoge hoge;
+
+    @Test
+    public void test() {
+        new Expectations() {
+            {
+                hoge.method(withSuffix("hoge"));
+                result = "mock";
+            }
+        };
+        System.out.println("hoge.method(\"stringhoge\") = " + hoge.method("stringhoge"));
+    }
+}
+実行結果
+hoge.method("stringhoge") = mock
+指定した文字で終わる文字列を渡した場合にマッチする。
+<T extends CharSequence> withSubstring(T)
+package sample.jmockit;
+
+import mockit.Expectations;
+import mockit.Mocked;
+import org.junit.Test;
+
+public class JmockitTest {
+    @Mocked
+    private Hoge hoge;
+
+    @Test
+    public void test() {
+        new Expectations() {
+            {
+                hoge.method(withSubstring("hoge"));
+                result = "mock";
+            }
+        };
+        System.out.println("hoge.method(\"Abc hoge xyZ\") = " + hoge.method("Abc hoge xyZ"));
+    }
+}
+実行結果
+hoge.method("Abc hoge xyZ") = mock
+指定した文字を間に含む文字列を渡した場合にマッチする。
+withSameInstance(T)
+package sample.jmockit;
+
+import mockit.Expectations;
+import mockit.Mocked;
+import org.junit.Test;
+
+public class JmockitTest {
+    @Mocked
+    private Hoge hoge;
+
+    @Test
+    public void test() {
+        final Fuga fuga = new Fuga();
+        new Expectations() {
+            {
+                hoge.method(withSameInstance(fuga));
+                result = "mock";
+            }
+        };
+        System.out.println("hoge.method(fuga) = " + hoge.method(fuga));
+    }
+
+    public static class Hoge {
+        public String method(Fuga fuga) {
+            return "hoge";
+        }
+    }
+
+    public static class Fuga {
+    }
+}
+実行結果
+hoge.method(fuga) = mock
+指定したオブジェクトと全く同じインスタンス（== で比較）が渡された場合にマッチする。
+普通のマッチングは equals(Object) メソッドを使用した比較が行われている。
+一部のメソッドだけをモック化する（部分モック化）
+静的な部分モック化
+package sample.jmockit;
+
+import mockit.Mocked;
+import mockit.NonStrictExpectations;
+import org.junit.Test;
+
+public class JmockitTest {
+    @Mocked("method()")
+    private Fuga fuga;
+
+    @Test
+    public void test() {
+        new NonStrictExpectations() {
+            {
+                fuga.method();
+                result = "mock";
+            }
+        };
+        System.out.println("fuga.method() = " + fuga.method());
+        System.out.println("fuga.method2() = " + fuga.method2());
+    }
+
+    public static class Fuga {
+        public String method() {
+            return "fuga";
+        }
+
+        public String method2() {
+            return "FUGA";
+        }
+    }
+}
+実行結果
+fuga.method() = mock
+fuga.method2() = FUGA
+@Mock アノテーションの value 属性に部分モック化させたいメソッドのシグネチャを表す文字列を渡すと、そのメソッドだけがモック化される。
+value 属性は String の配列なので、複数指定することも可能。
+引数が存在するメソッドを部分モック化する
+package sample.jmockit;
+
+import mockit.Mocked;
+import mockit.NonStrictExpectations;
+import org.junit.Test;
+
+public class JmockitTest {
+    @Mocked("method(String)")
+    private Fuga fuga;
+
+    @Test
+    public void test() {
+        new NonStrictExpectations() {
+            {
+                fuga.method("fuga");
+                result = "mock";
+            }
+        };
+        System.out.println("fuga.method() = " + fuga.method());
+        System.out.println("fuga.method(\"fuga\") = " + fuga.method("fuga"));
+    }
+
+    public static class Fuga {
+        public String method() {
+            return "fuga";
+        }
+
+        public String method(String value) {
+            return value;
+        }
+    }
+}
+実行結果
+fuga.method() = fuga
+fuga.method("fuga") = mock
+正規表現を使って部分モック化するメソッドを指定する
+package sample.jmockit;
+
+import mockit.Mocked;
+import mockit.NonStrictExpectations;
+import org.junit.Test;
+
+public class JmockitTest {
+    @Mocked("mock.*")
+    private Fuga fuga;
+
+    @Test
+    public void test() {
+        new NonStrictExpectations() {
+            {
+                fuga.mockTargetAlpha();
+                result = "mock";
+                fuga.mockTargetBeta();
+                result = "mock";
+            }
+        };
+        System.out.println("fuga.mockTargetAlpha() = " + fuga.mockTargetAlpha());
+        System.out.println("fuga.mockTargetBeta() = " + fuga.mockTargetBeta());
+        System.out.println("fuga.notMockTarget() = " + fuga.notMockTarget());
+    }
+
+    public static class Fuga {
+        public String mockTargetAlpha() {
+            return "fuga";
+        }
+
+        public String mockTargetBeta() {
+            return "FUGA";
+        }
+
+        public String notMockTarget() {
+            return "Fuga";
+        }
+    }
+}
+実行結果
+fuga.mockTargetAlpha() = mock
+fuga.mockTargetBeta() = mock
+fuga.notMockTarget() = Fuga
+コンストラクタを部分モック化する
+package sample.jmockit;
+
+import mockit.Mocked;
+import org.junit.Test;
+
+public class JmockitTest {
+    @Mocked("(String)")
+    private Fuga fuga;
+
+    @Test
+    public void test() {
+        Fuga fuga = new Fuga();
+        System.out.println("fuga.getName() = " + fuga.getName());
+        Fuga mock = new Fuga("FUGA");
+        System.out.println("mock.getName() = " + mock.getName());
+    }
+
+    public static class Fuga {
+        private String name = "fuga";
+
+        public Fuga() {
+        }
+
+        public Fuga(String name) {
+            this.name = name;
+        }
+
+        public String getName() {
+            return this.name;
+        }
+    }
+}
+fuga.getName() = fuga
+mock.getName() = null
+コンストラクタを部分モック化する場合は、メソッド名を空にする。
+静的な部分モック化はおすすめできない
+静的な部分モック化は、メソッド名を文字列で指定するため、リファクタリングに対して貧弱になるという欠点があるので、あまりおすすめできない。
+みたいなことがチュートリアルに書いてある。
+
+Static partial mocking has the inconvenience that we need to explicitly specify the methods/constructors to be mocked, and do so inside strings instead of in Java code. In short, it entails extra work and is not "refactoring friendly".
+
+Partial mocking - Dynamic partial mocking | The JMockit Tutorial - Behavior-based testing
+なので、動的な部分モック化を使ったほうが良い。
+
+動的な部分モック化
+Expectations ブロックのコンストラクタに部分モック化したいクラスの Class オブジェクトを渡す
+package sample.jmockit;
+
+import mockit.NonStrictExpectations;
+import org.junit.Test;
+
+public class JmockitTest {
+    @Test
+    public void test() {
+        new NonStrictExpectations(Hoge.class) {
+            {
+                new Hoge().method();
+                result = "mock";
+            }
+        };
+        Hoge hoge = new Hoge();
+        System.out.println("hoge.method() = " + hoge.method());
+        System.out.println("hoge.method(\"hoge\") = " + hoge.method("hoge"));
+        Hoge other = new Hoge();
+        System.out.println("other.method() = " + other.method());
+        System.out.println("other.method(\"other\") = " + other.method("other"));
+    }
+}
+実行結果
+hoge.method() = mock
+hoge.method("hoge") = hoge
+other.method() = mock
+other.method("other") = other
+Expectations または NonStrictExpectations ブロックのコンストラクタに、部分モック化したいクラスの Class オブジェクトを渡し、ブロックの中でモック化したいメソッドを記録すると、記録したメソッドだけがモック化される。
+new したオブジェクトは、全て部分モック化されている。
+部分モック化したいオブジェクトを、 Expectations のコンストラクタに渡す
+package sample.jmockit;
+
+import mockit.NonStrictExpectations;
+import org.junit.Test;
+
+public class JmockitTest {
+    @Test
+    public void test() {
+        final Hoge hoge = new Hoge();
+        new NonStrictExpectations(hoge) {
+            {
+                hoge.method("hoge");
+                result = "mock";
+            }
+        };
+        System.out.println("hoge.method() = " + hoge.method());
+        System.out.println("hoge.method(\"hoge\") = " + hoge.method("hoge"));
+
+        Hoge other = new Hoge();
+        System.out.println("other.method() = " + other.method());
+        System.out.println("other.method(\"other\") = " + other.method("other"));
+    }
+}
+実行結果
+hoge.method() = hoge
+hoge.method("hoge") = mock
+other.method() = hoge
+other.method("other") = other
+Expectations または NonStrictExpectations ブロックのコンストラクタに、部分モック化したいオブジェクトを渡し、ブロックの中でモック化したいメソッドを記録すると、記録したメソッドだけがモック化される。
+記録で使用したオブジェクトだけが部分モック化され、それ以外のオブジェクトは変化しない。
+モックオブジェクトから取得したオブジェクトも自動でモック化させる
+@Cascading は ver 1.14 で削除され、この動きがデフォルトになった。
+
+詳しくは モック化されたオブジェクトのメソッドが返す値 を参照。
+
+匿名クラスをモック化する
+package sample.jmockit;
+
+import mockit.Capturing;
+import mockit.NonStrictExpectations;
+import org.junit.Test;
+
+public class JmockitTest {
+    @Capturing
+    private MyInterface mock;
+
+    @Test
+    public void test() {
+        new NonStrictExpectations() {
+            {
+                mock.method();
+                result = "mock";
+            }
+        };
+        MyInterface anonymous = new MyInterface() {
+            @Override
+            public String method() {
+                return "anonymous";
+            }
+        };
+        System.out.println("anonymous.method() = " + anonymous.method());
+    }
+
+    public static interface MyInterface {
+        String method();
+    }
+}
+anonymous.method() = mock
+@Capturing を使うと匿名クラスをモック化できる。
+@Mocked だと、匿名クラスはモック化できない。
+@Mockedを使用した場合
+package sample.jmockit;
+
+import mockit.Capturing;
+import mockit.Mocked;
+import mockit.NonStrictExpectations;
+import org.junit.Test;
+
+public class JmockitTest {
+    @Mocked
+    private MyInterface mock;
+
+    @Test
+    public void test() {
+        new NonStrictExpectations() {
+            {
+                mock.method();
+                result = "mock";
+            }
+        };
+        MyInterface anonymous = new MyInterface() {
+            @Override
+            public String method() {
+                return "anonymous";
+            }
+        };
+        System.out.println("anonymous.method() = " + anonymous.method());
+    }
+
+    public static interface MyInterface {
+        String method();
+    }
+}
+実行結果
+anonymous.method() = anonymous
+maxInstances 属性
+package sample.jmockit;
+
+import mockit.Capturing;
+import mockit.NonStrictExpectations;
+import org.junit.Test;
+
+public class JmockitTest {
+    @Capturing(maxInstances = 2)
+    private Hoge hoge;
+
+    @Test
+    public void test() {
+        new NonStrictExpectations() {
+            {
+                hoge.method();
+                result = "mock";
+            }
+        };
+        Hoge a = new Hoge();
+        System.out.println("a.method() = " + a.method());
+        Hoge b = new Hoge();
+        System.out.println("b.method() = " + b.method());
+        Hoge c = new Hoge();
+        System.out.println("c.method() = " + c.method());
+    }
+}
+実行結果
+a.method() = mock
+b.method() = mock
+c.method() = null
+@Capturing の maxInstances を指定すると、記録した動作を適用するインスタンスの数を制限できる。
+今のところ、使いドコロはよくわからない。
+テスト対象クラスのオブジェクトに自動で依存するモックオブジェクトをインジェクションする
+package sample.jmockit;
+
+import mockit.Injectable;
+import mockit.NonStrictExpectations;
+import mockit.Tested;
+import org.junit.Test;
+
+public class JmockitTest {
+    @Tested
+    private Hoge hoge;
+    @Injectable
+    private Fuga fuga;
+    @Injectable
+    private String name = "hogeee";
+    @Injectable
+    private int i = 55;
+    @Injectable
+    private Piyo piyo;
+
+    @Test
+    public void test() {
+        new NonStrictExpectations() {
+            {
+                fuga.method();
+                result = "mock fuga";
+            }
+        };
+        System.out.println("hoge.fuga.method() = " + hoge.fuga.method());
+        System.out.println("hoge.name = " + hoge.name);
+        System.out.println("hoge.i = " + hoge.i);
+        System.out.println("hoge.fuga.piyo = " + hoge.fuga.piyo);
+    }
+
+    public static class Hoge {
+        private Fuga fuga;
+        private String name;
+        private int i;
+    }
+
+    public static class Fuga {
+        private Piyo piyo;
+
+        public String method() {
+            return "fuga";
+        }
+    }
+
+    public static class Piyo {
+        public String method() {
+            return "piyo";
+        }
+    }
+}
+実行結果
+hoge.fuga.method() = mock fuga
+hoge.name = hogeee
+hoge.i = 55
+hoge.fuga.piyo = null
+インジェクション先のオブジェクトを @Tested で定義し、インジェクションする値を @Injectable で定義すると、 @Injectable を指定した値が @Tested で指定したオブジェクトのフィールドで自動でインジェクションされる。
+インジェクションの連鎖は対応していない（Piyo クラス）。
+特定のオブジェクトでメソッドを実行した場合にのみ、指定した result を返すように指定する
+package sample.jmockit;
+
+import mockit.Mocked;
+import mockit.NonStrictExpectations;
+import org.junit.Test;
+
+public class JmockitTest {
+    @Mocked private Hoge hoge;
+
+    @Test
+    public void test() {
+        new NonStrictExpectations() {{
+           hoge.method(); result = "mock";
+        }};
+
+        Hoge other = new Hoge();
+        System.out.println(other.method());
+    }
+}
+実行結果
+mock
+NonStrictExpectations を使った場合、記録で使用したオブジェクトとは異なるオブジェクトでメソッドを実行しても、戻り値は result で指定した値が返される。
+これを、「このオブジェクトでメソッドを実行したときだけ、指定した result が返されるようにしたい」場合は以下のようにする。
+
+package sample.jmockit;
+
+import mockit.Mocked;
+import mockit.NonStrictExpectations;
+import org.junit.Test;
+
+public class JmockitTest {
+    @Mocked private Hoge hoge;
+
+    @Test
+    public void test() {
+        new NonStrictExpectations() {{
+            onInstance(hoge).method(); result = "mock";
+        }};
+
+        System.out.println("hoge.method() = " + hoge.method());
+        Hoge other = new Hoge();
+        System.out.println("other.method() = " + other.method());
+    }
+}
+実行結果
+hoge.method() = mock
+other.method() = null
+onInstance(T) メソッドを使うと、特定のオブジェクトでメソッドを実行した場合にのみ、指定した result を返すように指定できる。
+Verifications
+package sample.jmockit;
+
+import mockit.Mocked;
+import mockit.Verifications;
+import org.junit.Test;
+
+public class JmockitTest {
+    @Mocked private Hoge hoge;
+
+    @Test
+    public void 指定した通りにメソッドが実行されているので_テストは成功する() {
+        hoge.method("hoge");
+
+        new Verifications() {{
+            hoge.method("hoge");
+        }};
+    }
+
+    @Test
+    public void 指定したオブジェクト以外でメソッドが実行されている場合でも_テストは成功する() {
+        Hoge other = new Hoge();
+        other.method("hoge");
+
+        new Verifications() {{
+            hoge.method("hoge");
+        }};
+    }
+
+    @Test
+    public void 指定したメソッドが最低でも１回実行されていれば_同じメソッドを何回実行していても_テストは成功する() {
+        hoge.method("hoge");
+        hoge.method("hoge");
+
+        new Verifications() {{
+            hoge.method("hoge");
+        }};
+    }
+
+    @Test
+    public void 指定したメソッドが最低でも１回実行されていれば_関係ないメソッドを実行していても_テストは成功する() {
+        hoge.method("hoge");
+        hoge.method();
+
+        new Verifications() {{
+            hoge.method("hoge");
+        }};
+    }
+
+    @Test
+    public void 指定した順番でメソッドが実行されていなくても_テストは成功する() {
+        hoge.method("hoge");
+        hoge.method();
+
+        new Verifications() {{
+            hoge.method();
+            hoge.method("hoge");
+        }};
+    }
+
+    @Test
+    public void 指定した通りにメソッドが実行されていないので_テストは失敗する() {
+        hoge.method("fuga");
+
+        new Verifications() {{
+            hoge.method("hoge");
+        }};
+    }
+}
+Verifications を使うと、メソッドが意図した通りに実行されたかどうかを検証できる。
+ただし、デフォルトの検証はわりと緩い。
+Expectations を使うか、 NonStrictExpectations + Verifications を使うか
+NonStrictExpectations でダミーの動作を定義して Verifications で検証をする、というのがナウなやり方みたいなことがチュートリアルに書いにあった。
+
+So, how do we choose between strict and non-strict expectations for a given test? There is really no general-purpose answer to this question. It will depend on the particulars of the unit under test, and on personal preferences. The most common preference in recent years has been for non-strict expectations, combined with explicit verification after the code under test is exercised.
+
+Strict and non-strict expectations | The JMockit Tutorial - Behavior-based testing
+
+個人的には、 NonStrictExpectations と Verifications の合わせ技の方が、 setup, exercise, verify の３フェーズが明確になってコードが読みやすくなる気はする。
+（Expectations 単独だと、 setup と verify のフェーズが一緒になってしまい、コードが読みにくい気が若干している）
+
+メソッドの実行回数をチェックする
+package sample.jmockit;
+
+import mockit.Mocked;
+import mockit.Verifications;
+import org.junit.Test;
+
+public class JmockitTest {
+    @Mocked private Hoge hoge;
+
+    @Test
+    public void test() {
+        hoge.method("hoge");
+        hoge.method();
+        hoge.method();
+
+        new Verifications() {{
+            hoge.method("hoge"); times = 1;
+            hoge.method(); maxTimes = 2;
+        }};
+    }
+}
+Expectations のときと同じように、 times、 minTimes、 maxTimes が指定できる。
+メソッドを実行するオブジェクトを厳密にチェックする
+package sample.jmockit;
+
+import mockit.Mocked;
+import mockit.Verifications;
+import org.junit.Test;
+
+public class JmockitTest {
+    @Mocked private Hoge hoge;
+
+    @Test
+    public void test() {
+        hoge.method();
+
+        new Verifications() {{
+            onInstance(hoge).method();
+        }};
+    }
+}
+onInstance(T) メソッドを使えば、メソッドを実行するオブジェクトを厳密に検査できる。
+引数のマッチング
+package sample.jmockit;
+
+import mockit.Mocked;
+import mockit.Verifications;
+import org.junit.Test;
+
+public class JmockitTest {
+    @Mocked private Hoge hoge;
+
+    @Test
+    public void test() {
+        hoge.method("Hoge");
+
+        new Verifications() {{
+            hoge.method(withPrefix("H"));
+        }};
+    }
+}
+Expectations で使用した with～ や any～ は、 Verifications でも使用できる。
+メソッドの実行順序を厳密にチェックする場合は VerificationsInOrder を使う
+package sample.jmockit;
+
+import mockit.Mocked;
+import mockit.VerificationsInOrder;
+import org.junit.Test;
+
+public class JmockitTest {
+    @Mocked private Hoge hoge;
+
+    @Test
+    public void 指定した順序でメソッドが実行されているので_テストは成功する() {
+        hoge.method("hoge");
+        hoge.method();
+
+        new VerificationsInOrder() {{
+            hoge.method("hoge");
+            hoge.method();
+        }};
+    }
+
+    @Test
+    public void 指定した順序でメソッドが実行されていないので_テストは失敗する() {
+        hoge.method();
+        hoge.method("hoge");
+
+        new VerificationsInOrder() {{
+            hoge.method("hoge");
+            hoge.method();
+        }};
+    }
+}
+VerificationsInOrder を使えば、メソッドの実行順序も厳密にチェックできる。
+余計なメソッドが実行されていないことをチェックしたい場合は FullVerifications を使う
+package sample.jmockit;
+
+import mockit.FullVerifications;
+import mockit.Mocked;
+import org.junit.Test;
+
+public class JmockitTest {
+    @Mocked private Hoge hoge;
+
+    @Test
+    public void 指定したメソッドだけが実行されているので_テストは成功する() {
+        hoge.method("hoge");
+        new FullVerifications() {{
+            hoge.method("hoge");
+        }};
+    }
+
+    @Test
+    public void 指定したメソッド以外のメソッドが実行されているので_テストは失敗する() {
+        hoge.method("hoge");
+        hoge.method("fuga");
+
+        new FullVerifications() {{
+            hoge.method("hoge");
+        }};
+    }
+}
+FullVerifications を使うと、指定したメソッド以外のメソッドが実行されているとテストが失敗する
+余分なメソッドが実行されていないことと、実行順序の両方をチェックしたい場合は FullVerificationsInOrder を使う
+package sample.jmockit;
+
+import mockit.FullVerificationsInOrder;
+import mockit.Mocked;
+import mockit.VerificationsInOrder;
+import org.junit.Test;
+
+public class JmockitTest {
+    @Mocked private Hoge hoge;
+
+    @Test
+    public void 指定した順序で_指定したメソッドだけが実行されているので_テストは成功する() {
+        hoge.method();
+        hoge.method("hoge");
+
+        new FullVerificationsInOrder() {{
+            hoge.method();
+            hoge.method("hoge");
+        }};
+    }
+
+    @Test
+    public void 指定した順序でメソッドが実行されていないので_テストは失敗する() {
+        hoge.method("hoge");
+        hoge.method();
+
+        new FullVerificationsInOrder() {{
+            hoge.method();
+            hoge.method("hoge");
+        }};
+    }
+
+    @Test
+    public void 指定したメソッド以外のメソッドが実行されているので_テストは失敗する() {
+        hoge.method();
+        hoge.method("hoge");
+        hoge.method("fuga");
+
+        new FullVerificationsInOrder() {{
+            hoge.method();
+            hoge.method("hoge");
+        }};
+    }
+}
+Expectations と FullVerificationsInOrder の違い
+package sample.jmockit;
+
+import mockit.Expectations;
+import mockit.FullVerificationsInOrder;
+import mockit.Mocked;
+import org.junit.Test;
+
+public class JmockitTest {
+    @Mocked private Hoge hoge;
+    @Mocked private Fuga fuga;
+
+    @Test
+    public void Expectationsは_別のモックオブジェクトのメソッド実行まではチェックしないので_テストは成功する() {
+        new Expectations() {{
+            hoge.method("hoge");
+            hoge.method("fuga");
+        }};
+
+        hoge.method("hoge");
+        hoge.method("fuga");
+        fuga.method();
+    }
+
+    @Test
+    public void FullVerificationsInOrderは_指定したメソッド以外は全てのモックオブジェクトのメソッドについて実行されていないことをチェックするので_テストは失敗する() {
+        hoge.method("hoge");
+        hoge.method("fuga");
+        fuga.method();
+
+        new FullVerificationsInOrder() {{
+            hoge.method("hoge");
+            hoge.method("fuga");
+        }};
+    }
+
+    public static class Hoge {
+        public String method(String value) {
+            return value;
+        }
+    }
+
+    public static class Fuga {
+        public String method() {
+            return "fuga";
+        }
+    }
+}
+Expectations は、記録に使用したモッククラス以外についてはチェックしない。
+FullVerifications(InOrder) は、使用したモッククラス以外についても、実行されていないことを厳密にチェックする。
+FullVerifications(InOrder) で、特定のモッククラスだけ検証する
+package sample.jmockit;
+
+import mockit.FullVerifications;
+import mockit.Mocked;
+import org.junit.Test;
+
+public class JmockitTest {
+    @Mocked private Hoge hoge;
+    @Mocked private Fuga fuga;
+
+    @Test
+    public void テストは成功する() {
+        hoge.method("hoge");
+        hoge.method("fuga");
+        fuga.method();
+
+        new FullVerifications(hoge) {{
+            hoge.method("hoge");
+            hoge.method("fuga");
+        }};
+    }
+
+    public static class Hoge {
+        public String method(String value) {
+            return value;
+        }
+    }
+
+    public static class Fuga {
+        public String method() {
+            return "fuga";
+        }
+    }
+}
+FullVerifications(InOrder) のコンストラクタにモックオブジェクト、または Class オブジェクトを渡すと、検証対象をそのモッククラスだけに絞ることができる。
+実際にテスト実行時に使用されたメソッド引数をキャプチャーする
+package sample.jmockit;
+
+import mockit.Mocked;
+import mockit.Verifications;
+import org.junit.Test;
+
+public class JmockitTest {
+    @Mocked private Hoge hoge;
+
+    @Test
+    public void test() {
+        hoge.method("HOGE");
+
+        new Verifications() {{
+            String parameter;
+            hoge.method(parameter = withCapture());
+            System.out.println("parameter = " + parameter);
+        }};
+    }
+}
+実行結果
+parameter = HOGE
+withCapture() メソッドを使うと、テストが実行されたときに実際に渡された値を取得できる。
+使いドコロは分からない。
+MockUp<T> でモックを定義する
+package sample.jmockit;
+
+import mockit.Mock;
+import mockit.MockUp;
+import org.junit.Test;
+
+public class JmockitTest {
+    @Test
+    public void test() {
+        new MockUp<Hoge>() {
+            @Mock
+            public void $init() {
+                System.out.println("[MockUp] called constructor");
+            }
+
+            @Mock
+            public String method(String parameter) {
+                System.out.println("[MockUp] called method(String). parameter = " + parameter);
+                return "mock";
+            }
+        };
+
+        Hoge hoge = new Hoge();
+        System.out.println("hoge.method() = " + hoge.method());
+        System.out.println("hoge.method(\"hoge\") = " + hoge.method("hoge"));
+    }
+}
+実行結果
+[MockUp] called constructor
+hoge.method() = hoge
+[MockUp] called method(String). parameter = hoge
+hoge.method("hoge") = mock
+MockUp<T> クラスを継承したクラスを作成すると、 <T> で指定したクラスをモック化できる。 ********************************************************************************
+主に、テスト対象クラスが、依存しているクラスと正しくコラボレーションできているか（渡しているパラメータが意図したとおりかどうか）をチェックするのに利用する。 ********************************************************************************
+モック化したいメソッドと全く同じシグネチャを持つメソッドを定義し、 @Mock アノテーションを付与すると、そのメソッドをモック化できる。 ********************************************************************************
+コンストラクタをモック化する場合は、 $init という特別な名前のメソッドを定義する。 ********************************************************************************
+モック化されなかったメソッドは本来の実装が実行される。 ********************************************************************************
+@Mock アノテーションを付与したメソッドと同じシグネチャのメソッドが <T> で指定したクラスに存在しない場合は IllegalArgumentException がスローされる。 ********************************************************************************
+つまり、テストを実行した時に IllegalArgumentException がスローされた場合は、 @Mock アノテーションを付与したメソッドが実際のメソッドのシグネチャと異なっている可能性があるので、 IllegalArgumentException の原因は注意してチェックしないといけない。
+実際にIllegalArgumentExceptionがスローされたときのスタックトレース
+java.lang.IllegalArgumentException: Matching real methods not found for the following mocks:
+sample.jmockit.JmockitTest$1#notExistsMethod()
+（以下略）
+クラスメソッドをモック化する
+package sample.jmockit;
+
+import mockit.Mock;
+import mockit.MockUp;
+import org.junit.Test;
+
+public class JmockitTest {
+    @Test
+    public void test() {
+        new MockUp<Fuga>() {
+            @Mock
+            public void classMethod() {
+                System.out.println("mock");
+            }
+        };
+        Fuga.classMethod();
+    }
+
+    public static class Fuga {
+        public static void classMethod() {}
+    }
+}
+実行結果
+mock
+@Mock アノテーションを付けるメソッドに static 修飾子を付けなくてもいい。
+private メソッドをモック化する
+package sample.jmockit;
+
+import mockit.Mock;
+import mockit.MockUp;
+import org.junit.Test;
+
+public class JmockitTest {
+    @Test
+    public void test() {
+        new MockUp<Hoge>() {
+            @Mock
+            private void privateMethod() {
+                System.out.println("mock");
+            }
+        };
+
+        Hoge hoge = new Hoge();
+        hoge.method();
+    }
+
+    public static class Hoge {
+        public void method() {
+            this.privateMethod();
+        }
+        private void privateMethod() {
+            System.out.println("privateMethod() is called.");
+        }
+    }
+}
+実行結果
+mock
+シグネチャさえ合っていれば、 private メソッドもモック化できる。
+String クラスもモック化できちゃう
+package sample.jmockit;
+
+import mockit.Mock;
+import mockit.MockUp;
+import org.junit.Test;
+
+public class JmockitTest {
+    @Test
+    public void test() {
+        new MockUp<String>() {
+            @Mock
+            public String toString() {
+                return "mock";
+            }
+        };
+
+        System.out.println("\"hoge\".toString() = " + "hoge".toString());
+    }
+}
+実行結果
+"hoge".toString() = mock
+なにこれこわい。
+インターフェースのモック化を宣言して、そのモックオブジェクトをその場で取得する
+package sample.jmockit;
+
+import mockit.Mock;
+import mockit.MockUp;
+import org.junit.Test;
+
+public class JmockitTest {
+    @Test
+    public void test() {
+        MyInterface mock = new MockUp<MyInterface>() {
+            @Mock
+            public String method() {
+                return "mock";
+            }
+        }.getMockInstance();
+
+        System.out.println("mock.method() = " + mock.method());
+    }
+
+    public static interface MyInterface {
+        String method();
+    }
+}
+実行結果
+mock.method() = mock
+getMockInstance() メソッドを実行すると、モックオブジェクトをその場で取得できる。
+普通のクラスをモック化している場合は不要だけど、具体的な実装を持たないインターフェースをモック化したい場合に有用。
+モックメソッドの呼び出し回数を制限する
+package sample.jmockit;
+
+import mockit.Mock;
+import mockit.MockUp;
+import org.junit.Test;
+
+public class JmockitTest {
+    @Test
+    public void test() {
+        new MockUp<Fuga>() {
+            @Mock(invocations = 1)
+            public void method1() {}
+            @Mock(minInvocations = 2)
+            public void method2() {}
+            @Mock(maxInvocations = 3)
+            public void method3() {}
+        };
+
+        Fuga fuga = new Fuga();
+        fuga.method1();
+        fuga.method2();
+        fuga.method2();
+        fuga.method3();
+        fuga.method3();
+    }
+
+    public static class Fuga {
+        public void method1() {}
+        public void method2() {}
+        public void method3() {}
+    }
+}
+@Mock アノテーションの属性で、そのメソッドが呼び出される回数を制限できる。
+invocations を指定すると、指定した回数だけ呼び出されないとテストが失敗する。
+minInvocations を指定すると、「最低限実行されないと行けない回数」を定義できる。
+maxInvocations を指定すると、「実行されていい最大の回数」を定義できる。
+static 初期化ブロックをモック化する
+package sample.jmockit;
+
+import mockit.Mock;
+import mockit.MockUp;
+import org.junit.Test;
+
+public class JmockitTest {
+    @Test
+    public void test() {
+        new MockUp<Fuga>() {
+            @Mock
+            public void $clinit() {
+                System.out.println("[mocked static initialization]");
+            }
+        };
+
+        System.out.println("Fuga.FINAL_STATIC_FIELD = " + Fuga.FINAL_STATIC_FIELD);
+        System.out.println("Fuga.NOT_FINAL_STATIC_FIELD = " + Fuga.NOT_FINAL_STATIC_FIELD);
+    }
+
+    public static class Fuga {
+        static final String FINAL_STATIC_FIELD = "final static field";
+        static String NOT_FINAL_STATIC_FIELD = "not final static field";
+        static {
+            System.out.println("[original static initialization]");
+        }
+    }
+}
+実行結果
+Fuga.FINAL_STATIC_FIELD = final static field
+[mocked static initialization]
+Fuga.NOT_FINAL_STATIC_FIELD = null
+$clinit() メソッドを定義すると、 static 初期化ブロックをモック化できる。
+final で無いクラスフィールドは、デフォルト値で初期化されるようになるので注意。
+モック化する場合は、 JVM が初期化する前に MockUp を宣言する
+package sample.jmockit;
+
+import mockit.Mock;
+import mockit.MockUp;
+import org.junit.Test;
+
+public class JmockitTest {
+    @Test
+    public void test() {
+        System.out.println("【JVM による初期化】");
+        System.out.println("Fuga.NOT_FINAL_STATIC_FIELD = " + Fuga.NOT_FINAL_STATIC_FIELD);
+
+        new MockUp<Fuga>() {
+            @Mock
+            public void $clinit() {
+                System.out.println("[mocked static initialization]");
+            }
+        };
+
+        System.out.println("【MockUp による宣言後】");
+        System.out.println("Fuga.NOT_FINAL_STATIC_FIELD = " + Fuga.NOT_FINAL_STATIC_FIELD);
+    }
+
+    public static class Fuga {
+        static final String FINAL_STATIC_FIELD = "final static field";
+        static String NOT_FINAL_STATIC_FIELD = "not final static field";
+
+        static {
+            System.out.println("[original static initialization]");
+        }
+    }
+}
+実行結果
+【JVM による初期化】
+[original static initialization]
+Fuga.NOT_FINAL_STATIC_FIELD = not final static field
+
+【MockUp による宣言後】
+Fuga.NOT_FINAL_STATIC_FIELD = not final static field
+JVM による初期化が先に実行されると、 MockUp による宣言をしても static 初期化ブロックはモック化されない（当たり前といえば当たり前）。
+Invocation
+package sample.jmockit;
+
+import mockit.Invocation;
+import mockit.Mock;
+import mockit.MockUp;
+import org.junit.Test;
+
+public class JmockitTest {
+    @Test
+    public void test() {
+        new MockUp<Hoge>() {
+            @Mock
+            public void method(Invocation inv, String parameter) {}
+        };
+    }
+}
+@Mock を付けたメソッドの第一引数には、任意に Invocation 型の引数を受け取る用に宣言できる。
+Invocation には、そのモックメソッドが実行されているときのコンテキスト情報が入っている。
+モックメソッド内で、実行時のモックオブジェクトを取得する
+package sample.jmockit;
+
+import mockit.Invocation;
+import mockit.Mock;
+import mockit.MockUp;
+import org.junit.Test;
+
+public class JmockitTest {
+    @Test
+    public void test() {
+        new MockUp<Fuga>() {
+            @Mock
+            public void method(Invocation inv) {
+                Fuga fuga = inv.getInvokedInstance();
+                fuga.value = "mock";
+            }
+
+            @Mock
+            public void classMethod(Invocation inv) {
+                Fuga fuga = inv.getInvokedInstance();
+                System.out.println("クラスメソッド内で取得した fuga = " + fuga);
+            }
+        };
+
+        Fuga fuga = new Fuga();
+        fuga.method();
+        System.out.println("fuga.value = " + fuga.value);
+        Fuga.classMethod();
+    }
+
+    public static class Fuga {
+        private String value;
+        public void method() {}
+        public static void classMethod() {}
+    }
+}
+実行結果
+fuga.value = mock
+クラスメソッド内で取得した fuga = null
+getInvokedInstance() メソッドを使うと、そのモックメソッドを実行しているモックオブジェクトを取得できる。
+クラスメソッドの中で getInvokedInstance() を使うと、 null が返される。
+モックメソッドが実行された回数を取得する
+package sample.jmockit;
+
+import mockit.Invocation;
+import mockit.Mock;
+import mockit.MockUp;
+import org.junit.Test;
+
+public class JmockitTest {
+
+    @Test
+    public void test() {
+        new MockUp<Fuga>() {
+            @Mock
+            public void method(Invocation inv) {
+                System.out.println(inv.getInvocationCount());
+            }
+        };
+
+        Fuga fuga = new Fuga();
+        fuga.method();
+        fuga.method();
+        fuga.method();
+    }
+
+    public static class Fuga {
+        public void method() {}
+    }
+}
+実行結果
+1
+2
+3
+getInvocationCount() メソッドを使うと、そのモックメソッドが実行された回数が取得できる。
+モックメソッド内で、オリジナルの実装を呼び出す
+package sample.jmockit;
+
+import mockit.Invocation;
+import mockit.Mock;
+import mockit.MockUp;
+import org.junit.Test;
+
+public class JmockitTest {
+
+    @Test
+    public void test() {
+        new MockUp<Fuga>() {
+            @Mock
+            public void method(Invocation inv) {
+                System.out.println("mock");
+                inv.proceed();
+            }
+        };
+
+        Fuga fuga = new Fuga();
+        fuga.method();
+    }
+
+    public static class Fuga {
+        public void method() {
+            System.out.println("fuga");
+        }
+    }
+}
+mock
+fuga
+proceed(Object...) メソッドを実行すると、オリジナルのメソッドを呼び出すことができる。
+リフレクションを利用したユーティリティ
+Deencapsulation というクラスがあり、リフレクション API を使って private なフィールドやメソッドにアクセスするためのユーティリティメソッドが用意されている。
+
+package sample.jmockit;
+
+import mockit.Deencapsulation;
+import org.junit.Test;
+
+public class JmockitTest {
+    @Test
+    public void test() {
+        Fuga fuga = Deencapsulation.newInstance(Fuga.class);
+        Deencapsulation.invoke(fuga, "method");
+        Deencapsulation.setField(fuga, "instanceField", "fugaaa");
+        System.out.println("fuga.instanceField = " + Deencapsulation.getField(fuga, "instanceField"));
+    }
+
+    public static class Fuga {
+        private String instanceField = "instance field";
+
+        private Fuga() {
+            System.out.println("called Fuga constructor");
+        }
+
+        private void method() {
+            System.out.println("called fuga.method()");
+        }
+    }
+}
+実行結果
+called Fuga constructor
+called fuga.method()
+fuga.instanceField = fugaaa
+メソッド	機能
+newInstance()	コンストラクタを使ってオブジェクトを生成する
+setField(), getField()	フィールドにアクセスする
+invoke()	メソッドを実行する
+使い方は、メソッドのシグネチャを見ればだいたい想像できる（Deencapsulation (JMockit Toolkit API)）。
+
+参考
+The JMockit testing toolkit
+Getting started with the JMockit Testing Toolkit の邦訳（前編） - A Memorandum
+Getting started with the JMockit Testing Toolkit の邦訳（後編） - A Memorandum
+JMockitは理想的なモックフレームワーク - じゅんいち☆かとうの技術日誌
+次世代のモックフレームワークであるJMockitの基本的な使い方 - 達人プログラマーを目指して
+編集リクエスト
+ストック
+いいね
+299
+opengl-8080
+@opengl-8080
+仕事で Struts を使って趣味で Java EE を使う見習い SE。 
+ Qiita にまとめていることの 80% くらいは業務で使えていないけど、趣味だからそれでいいのかもしれない。
+フォロー
+
+
+
+
+
+環境
+Java
+JMockit
+インストール
+jar のダウンロード
+クラスパスに追加する
+JDK1.6 以上 かつ JUnit 4.5 以上の場合
+それ以外の場合
+モック
+モックの特徴
+モック化されたオブジェクトのメソッドが返す値
+モックが返す値を null にしたい場合
+final 修飾されたメソッドもモック化される
+インスタンスフィールドもデフォルト値になる
+コンストラクタはモックオブジェクトを返すようになる
+モックを定義する方法
+テストクラスのインスタンスフィールドで @Mocked アノテーションを使う
+テストメソッドの引数で定義する
+@Injectable で特定のインスタンスだけモック化する
+@Tested でテスト対象のインスタンスを生成する
+基本
+テスト対象クラスがフィールドを持つ場合
+コンストラクタの条件
+Expectations
+NonStrictExpectations
+期待する動作を記録する
+期待される動作の実行回数を指定する
+最小回数を指定する
+最大回数を指定する
+minTimes と maxTimes を組み合わせて使用する
+メソッドの動作をダミーに差し替える
+メソッドの戻り値を指定する
+コンストラクタの戻り値は指定できない
+メソッドを実行するたびに異なる値を返すようにする
+【この方法は最新版では使えません】result に連続して値を代入する
+returns() メソッドを使う
+result に配列（リスト）を代入する
+メソッドを実行したら例外をスローするように指定する
+returns() で例外をスローするように指定することはできない
+Delegate を使ってモック化したメソッドの動作を指定する
+引数のマッチング
+基本
+any オブジェクトを使って任意の引数にマッチさせる
+with～() メソッドを使ってマッチングする
+with(Object)
+withAny(T)
+withEqual(double, double)
+withInstanceOf(Class)
+withNotEqual(T)
+withNotNull()
+<T extends CharSequence> withMatch(T)
+<T extends CharSequence> withPrefix(T)
+<T extends CharSequence> withSuffix(T)
+<T extends CharSequence> withSubstring(T)
+withSameInstance(T)
+一部のメソッドだけをモック化する（部分モック化）
+静的な部分モック化
+引数が存在するメソッドを部分モック化する
+正規表現を使って部分モック化するメソッドを指定する
+コンストラクタを部分モック化する
+静的な部分モック化はおすすめできない
+動的な部分モック化
+Expectations ブロックのコンストラクタに部分モック化したいクラスの Class オブジェクトを渡す
+部分モック化したいオブジェクトを、 Expectations のコンストラクタに渡す
+モックオブジェクトから取得したオブジェクトも自動でモック化させる
+匿名クラスをモック化する
+maxInstances 属性
+テスト対象クラスのオブジェクトに自動で依存するモックオブジェクトをインジェクションする
+特定のオブジェクトでメソッドを実行した場合にのみ、指定した result を返すように指定する
+Verifications
+Expectations を使うか、 NonStrictExpectations + Verifications を使うか
+メソッドの実行回数をチェックする
+メソッドを実行するオブジェクトを厳密にチェックする
+引数のマッチング
+メソッドの実行順序を厳密にチェックする場合は VerificationsInOrder を使う
+余計なメソッドが実行されていないことをチェックしたい場合は FullVerifications を使う
+余分なメソッドが実行されていないことと、実行順序の両方をチェックしたい場合は FullVerificationsInOrder を使う
+Expectations と FullVerificationsInOrder の違い
+FullVerifications(InOrder) で、特定のモッククラスだけ検証する
+実際にテスト実行時に使用されたメソッド引数をキャプチャーする
+MockUp<T> でモックを定義する
+クラスメソッドをモック化する
+private メソッドをモック化する
+String クラスもモック化できちゃう
+インターフェースのモック化を宣言して、そのモックオブジェクトをその場で取得する
+モックメソッドの呼び出し回数を制限する
+static 初期化ブロックをモック化する
+モック化する場合は、 JVM が初期化する前に MockUp を宣言する
+Invocation
+モックメソッド内で、実行時のモックオブジェクトを取得する
+モックメソッドが実行された回数を取得する
+モックメソッド内で、オリジナルの実装を呼び出す
+リフレクションを利用したユーティリティ
