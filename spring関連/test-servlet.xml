@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:p="http://www.springframework.org/schema/p"
+    xmlns:mvc="http://www.springframework.org/schema/mvc" xmlns:context="http://www.springframework.org/schema/context"
+    xmlns:aop="http://www.springframework.org/schema/aop"
+    xsi:schemaLocation="http://www.springframework.org/schema/beans
+    http://www.springframework.org/schema/beans/spring-beans-4.1.xsd
+    http://www.springframework.org/schema/mvc
+    http://www.springframework.org/schema/mvc/spring-mvc-4.1.xsd
+    http://www.springframework.org/schema/context
+    http://www.springframework.org/schema/context/spring-context-4.1.xsd
+    http://www.springframework.org/schema/aop
+    http://www.springframework.org/schema/aop/spring-aop-4.1.xsd">
+
+    <mvc:annotation-driven />
+
+    <!-- applicationContext側で必要な箇所と競合するとトランザクションが効かなくなったので、ここでは必要な箇所のみ対象とする -->
+    <context:component-scan base-package="パッケージ名" />
+
+    <!-- HandlerMapping -->
+    <bean class="org.springframework.web.servlet.mvc.support.ControllerClassNameHandlerMapping" />
+    <bean class="org.springframework.jdbc.support.lob.DefaultLobHandler"></bean>
+
+    <!-- 例外のハンドラクラス  -->
+    <bean class="ハンドラクラス"/>
+
+    <!-- ViewResolver -->
+    <bean id="internalResourceViewResolver"
+        class="org.springframework.web.servlet.view.InternalResourceViewResolver">
+        <property name="prefix">
+            <value>/WEB-INF/jsp/</value>
+        </property>
+        <property name="suffix">
+            <value>.jsp</value>
+        </property>
+    </bean>
+
+    <!-- アップローダ -->
+    <bean id="multipartResolver" class=" org.springframework.web.multipart.support.StandardServletMultipartResolver"/>
+
+    <!-- Jackson -->
+    <context:annotation-config/>
+    <bean id="jacksonMessageConverter"
+        class="org.springframework.http.converter.json.MappingJackson2HttpMessageConverter">
+    </bean>
+    <bean class="org.springframework.web.servlet.mvc.annotation.AnnotationMethodHandlerAdapter">
+        <property name="messageConverters">
+            <list>
+                <ref bean="jacksonMessageConverter"/>
+            </list>
+        </property>
+    </bean>
+
+    <!-- Interceptor -->
+     <mvc:interceptors>
+        <mvc:interceptor>
+            <mvc:mapping path="/**" />
+            <bean class="インターセプタークラス" />
+        </mvc:interceptor>
+        <bean id="webContentInterceptor" class="org.springframework.web.servlet.mvc.WebContentInterceptor">
+            <property name="cacheSeconds" value="0"/>
+            <property name="useExpiresHeader" value="true"/>
+            <property name="useCacheControlHeader" value="true"/>
+            <property name="useCacheControlNoStore" value="true"/>
+        </bean>
+    </mvc:interceptors>
+</beans>
