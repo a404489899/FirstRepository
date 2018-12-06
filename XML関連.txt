@@ -1,7 +1,7 @@
-xml 
+XML関連
 
 /********************
-dtd                 *
+DTD                 *
 ********************/
 ・要素指定
 <!ELEMENT 要素名　要素名?>
@@ -9,36 +9,146 @@ dtd                 *
 <!ELEMENT 要素名　#PCDATA 
 ・属性の設定
 <!ATTLIST 要素名　属性名　属性値の候補　デフォルト値>
-
 	<!ATTLIST 要素名　属性名　(属性値候補1 | 属性値候補2 |...) デフォルト値>
 	以下に例を示します。
-
 	<!ATTLIST 信号　色　（赤|青|黄色)　"青">
-
 	<信号　色="赤"/>
-
-	・必ず指定しなければいけない属性値に関しては、#REQUIREDと記述します。
-	
+	・必ず指定しなければいけない属性値に関しては、#REQUIREDと記述します。	
 	・上の商品番号属性は必ず値を設定する必要があります。属性値が指定されなった場合はエラーになります。対して、属性値を設定しなくてもよい場合には、IMPLIEDと記述します。
-	
-・NameSpace関連
+/********************
+・NameSpace関連     *
+********************/
 	各XML文書でNamespaceの「省略名」 を指定することができます。省略名は、以下のように指定します。
-
 	xmlns:Namespace接頭辞　=　"名前空間を示すURI"
 	<Namespace接頭辞 : 要素名　Namespace接頭辞 : 属性名="属性値"/>
-
 	デフォルトNamespaceを指定する方法です。デフォルトNamespaceは属性値で宣言します。
-
 	< 要素名　xmlns=" デフォルトNamespaceのURI"/>
-
 	NameSpaceの利用例
 	<RESERVATION xmlns:HTML="http://www.w3.org/TR/REC-html40"
                 xmlns="http://www.4dd.co.jp/reservation">
- 
     <NAME HTML:CLASS="largeSansSerif">Layman, A</NAME>
     <SEAT CLASS="Y" HTML:CLASS="largeMonotype">33B</SEAT>
     <HTML:A HREF="/cgi-bin/ResStatus">Check Status</HTML:A>
     <DEPARTURE>1997-05-24T07:55:00+1</DEPARTURE>
  
 	</RESERVATION>
-	上の例では、reservationをデフォルトNamespaceとして指定しています。そのため、Namespace接頭辞を持たない、SEAT要素はres	ervation Namespaceに属すると認識されます。SEAT要素の属性、CLASSもNamespace接頭辞を持ちません。そのため、SEAT要素のロ	ーカルなNamespaceに属すると認識されます。また、5行目A要素は、Namespace接頭辞により、HTML Namespaceに属すと指定されて	います。ただ、HREF属性は名前空間接頭辞を持ちません。よって、HREF属性も、Ａ要素のローカルなNamespaceに属すると認識さ		れます。
+	上の例では、reservationをデフォルトNamespaceとして指定しています。そのため、Namespace接頭辞を持たない、SEAT要素はres	ervation Namespaceに属すると認識されます。SEAT要素の属性、CLASSもNamespace接頭辞を持ちません。そのため、SEAT要素のロ	ーカルなNamespaceに属すると認識されます。また、5行目A要素は、Namespace接頭辞により、HTML Namespaceに属すと指定されて	います。ただ、HREF属性は名前空間接頭辞を持ちません。よって、HREF属性も、Ａ要素のローカルなNamespaceに属すると認識されます。
+
+/********************
+・XML SCHEMA関連    *
+********************/	
+
+	・ルート要素はSchema 例:<xsd:schema xmlns="デフォルトNameSapce" xmlns:xsd="http://www.w3.org/2001/XMLSchema"/>
+	  スキーマのimprot
+	  例：<xsd:import namespace="http://www.springframework.org/schema/tool" schemaLocation="http://www.springframework.org/schema/tool/spring-tool-4.1.xsd"/>
+	  
+	  ・要素の宣言
+	  		<element name="要素の名前" type="要素の型" />
+	   		<xsd:element name="purchaseOrder" type="po:PurchaseOrderType"/>
+	   
+	   ・型を定義
+	   		<complexType name="Complex Typeの名前" >
+    			要素の内容モデル
+    			属性の定義
+			</complexType>
+	   		<xsd:complexType name="PurchaseOrderType">
+	   
+	   ・既存要素の参照
+	   		<element ref="要素の名前"/>
+	   
+	   ・出現する順番に関する制限は、以下の要素を使って指定します。
+	   		sequence 
+			要素の出現の順番を指定します。
+			choice 
+			出現する要素のリストを指定します。ここで指定した要素のうちどれか一つが出現します。
+			all 
+			出現の順番に関する制限はありません。記述してある要素が任意の順番で、0回もしくは1回、出現します。
+		
+		・属性の宣言は、attribute要素を使用します。
+			<attribute name="属性の名前" type="属性値の型"/>
+		・属性値の固定
+			<attribute name="属性の名前" type="属性の型" fixed="属性の値"/>
+		・Simple Typeの作成
+			<simpleType name="SimpleTypeの名前">
+          		<i>Simple Typeの型の内容</i>
+			</simpleType>
+			・制限の追加
+				<xsd:simpleType name="SKU">
+  					<xsd:restriction base="xsd:string">
+   					<xsd:pattern value="\d{3}-[A-Z]{2}"/>
+  					</xsd:restriction>
+				</xsd:simpleType>
+					<enumeration>も利用可能
+			・Typeの結合
+				<xsd:simpleType name="OrderDate">
+  					<xsd:union base="xsd:date xsd:gMonthDay"/>
+				</xsd:simpleType>
+		・Complex Typeにはsimple content(内容に子供要素を含まない型) 、Complex content(内容に子供要素を含む型)
+		
+		・simple contentのcomplex type 設定方法
+			<complexType name="Complex Typeの名前">
+				<simpleContent>
+				<extension base="基となSimple Typeの名前">
+				追加する属性
+				</extention>
+				</simpleContent>
+			</complexType>
+			
+		・complex contentのcomplex type 設定方法	
+			<complexType name="Complex Typeの名前">
+   				<complexContent>
+      			<extension base="基になるComplex Typeの名前">
+        		追加する要素
+        		追加する属性
+      			</extension>
+   				</complexContent>
+			</complexType>
+			
+		・Anonymous Type
+			<element name="要素の名前">
+				<complexType>
+					 要素の内容モデル
+ 					属性の定義
+				</complexType>
+			</element>
+			
+			例：<xsd:element name="item" minOccurs="0" maxOccurs="unbounded">
+					  <xsd:complexType>
+					     <xsd:sequence>
+					       <xsd:element name="productName" type="xsd:string"/>
+					       <xsd:element name="quantity">
+					         <xsd:simpleType>
+					           <xsd:restriction base="xsd:positiveInteger">
+					            <xsd:maxExclusive value="100"/>
+					           </xsd:restriction>
+					         </xsd:simpleType>
+					       </xsd:element>
+					       <xsd:element name="USPrice"  type="xsd:decimal"/>
+					       <xsd:element ref="po:comment"   minOccurs="0"/>
+					       <xsd:element name="shipDate" type="xsd:date" minOccurs="0"/>
+					     </xsd:sequence>
+					     <xsd:attribute name="partNum" type="po:SKU" use="required"/>
+					  </xsd:complexType>
+					</xsd:element>
+		・SchemaとTargetName Sapceの関係
+		<schema targetNamespace="本文書で定義している言語のNamespaceのURI">
+ 			．．．
+		</schema>
+		
+		・スキーマlocation
+			schemaLocation="NamespaceのURI1   スキーマファイルの所在を示すURI1
+                			NamespaceのURI2  スキーマファイルの所在を示すURI2
+                			... "
+         ※XML 文書中で使用する属性に関しては、XML Schemaとは別のNamespaceを用意しています。これが、"http://www.w3.org/2001/XMLSchema-instance"にあたります。（スキーマを記述する際に使用するXML SchemaのNamespaceは "http://www.w3.org/2001/XMLSchema"です。）
+		 例：
+		 	<?xml version="1.0"?>
+ 			<purchaseReport
+      			xmlns="http://www.example.com/Report"
+      			xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      			xsi:schemaLocation="http://www.example.com/Report
+                          http://www.example.com/Report.xsd"
+      			period="P3M" periodEnding="1999-12-31">
+    			...
+			</purchaseReport>
+		※グローバル要素はName Spaceを指定しなければならない。
+		
