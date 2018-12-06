@@ -1,0 +1,44 @@
+xml 
+
+/********************
+dtd                 *
+********************/
+・要素指定
+<!ELEMENT 要素名　要素名?>
+・テキストデータを含む場合
+<!ELEMENT 要素名　#PCDATA 
+・属性の設定
+<!ATTLIST 要素名　属性名　属性値の候補　デフォルト値>
+
+	<!ATTLIST 要素名　属性名　(属性値候補1 | 属性値候補2 |...) デフォルト値>
+	以下に例を示します。
+
+	<!ATTLIST 信号　色　（赤|青|黄色)　"青">
+
+	<信号　色="赤"/>
+
+	・必ず指定しなければいけない属性値に関しては、#REQUIREDと記述します。
+	
+	・上の商品番号属性は必ず値を設定する必要があります。属性値が指定されなった場合はエラーになります。対して、属性値を設定しなくてもよい場合には、IMPLIEDと記述します。
+	
+・NameSpace関連
+	各XML文書でNamespaceの「省略名」 を指定することができます。省略名は、以下のように指定します。
+
+	xmlns:Namespace接頭辞　=　"名前空間を示すURI"
+	<Namespace接頭辞 : 要素名　Namespace接頭辞 : 属性名="属性値"/>
+
+	デフォルトNamespaceを指定する方法です。デフォルトNamespaceは属性値で宣言します。
+
+	< 要素名　xmlns=" デフォルトNamespaceのURI"/>
+
+	NameSpaceの利用例
+	<RESERVATION xmlns:HTML="http://www.w3.org/TR/REC-html40"
+                xmlns="http://www.4dd.co.jp/reservation">
+ 
+    <NAME HTML:CLASS="largeSansSerif">Layman, A</NAME>
+    <SEAT CLASS="Y" HTML:CLASS="largeMonotype">33B</SEAT>
+    <HTML:A HREF="/cgi-bin/ResStatus">Check Status</HTML:A>
+    <DEPARTURE>1997-05-24T07:55:00+1</DEPARTURE>
+ 
+	</RESERVATION>
+	上の例では、reservationをデフォルトNamespaceとして指定しています。そのため、Namespace接頭辞を持たない、SEAT要素はres	ervation Namespaceに属すると認識されます。SEAT要素の属性、CLASSもNamespace接頭辞を持ちません。そのため、SEAT要素のロ	ーカルなNamespaceに属すると認識されます。また、5行目A要素は、Namespace接頭辞により、HTML Namespaceに属すと指定されて	います。ただ、HREF属性は名前空間接頭辞を持ちません。よって、HREF属性も、Ａ要素のローカルなNamespaceに属すると認識さ		れます。
