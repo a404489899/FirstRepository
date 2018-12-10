@@ -1,0 +1,18 @@
+webService関連
+
+1.@WebService @WebMethod を定義して　SOAP型のWEbServiceを作成　　　　?wsdl
+	@XmlRootElement(name="product")
+	@XmlType(propOrder={"price","suku","name"})
+	@WebResult(returnのカスタマイズ)
+	@WebMethod(exclude="true")
+	@WebParam partName=""のカスタマイズ
+	・message nameはメソッド名に紐づくかも??
+	@XmlElementにnameを設定時はGetメソッドに名前を設定する
+	@XmlRootElementのタグ名を変更するには@WebResultを修正する必要がある。
+2.Jerxyを利用して　RestFulなWebServiceを作成
+
+＠Path
+@GET
+@Produces
+@Consomes
+@Param
