@@ -9,6 +9,59 @@ webService関連
 	・message nameはメソッド名に紐づくかも??
 	@XmlElementにnameを設定時はGetメソッドに名前を設定する
 	@XmlRootElementのタグ名を変更するには@WebResultを修正する必要がある。
+	
+	// サービス生成
+        QName port = new QName( "http://sample.com", "UserInfoPort" );
+        Service service = Service.create(
+            new QName("http://sample.com", "UserInfoService"));
+        String serviceURL = "http://webhost:8085/dispatch_provider/UserInfoService";
+ 
+        // サービスにポートを追加
+        service.addPort( port, SOAPBinding.SOAP11HTTP_BINDING, serviceURL );
+ 
+        // Dispatchオブジェクト生成
+        Dispatch<SOAPMessage> dispatch = service.createDispatch(
+            port, SOAPMessage.class, Service.Mode.MESSAGE );
+ 
+        // 要求メッセージ
+        SOAPMessage request = null;
+        
+        try{
+            // 要求メッセージの生成
+            request = MessageFactory.newInstance().createMessage();
+            SOAPBody reqSoapBody = request.getSOAPBody();
+ 
+            // 社員番号を設定
+            SOAPBodyElement requestRoot= soapBody.addBodyElement(
+                new QName("http://sample.com", "number"));
+            SOAPElement soapElement = requestRoot.addChildElement(
+                new QName("http://sample.com", "value"));
+            soapElement.addTextNode( "1234" );
+ 
+            // 添付ファイル(顔写真)を設定
+            String filePath = "C:\\attachment.jpg";
+            FileDataSource fds = new FileDataSource(filePath);
+            AttachmentPart apPart =
+                request.createAttachmentPart(new DataHandler(fds));
+            request.addAttachmentPart(apPart);
+ 
+            // SOAPメッセージの送受信
+            SOAPMessage response = dispatch.invoke( request );
+ 
+            // 応答メッセージからデータを取得
+            SOAPBody resSoapBody = response.getSOAPBody();
+            SOAPBodyElement resRoot =
+                (SOAPBodyElement)resSoapBody.getChildElements().next();
+            Iterator iterator = resRoot.getChildElements();
+            String result =
+                ((SOAPElement)iterator.next()).getFirstChild().getNodeValue();
+ 
+            // 登録確認メッセージの表示
+            System.out.println( "[RESULT] " + result );
+        } catch( SOAPException e ) {
+            e.printStackTrace();
+      }
+   }
 2.Jerxyを利用して　RestFulなWebServiceを作成
 
 ＠Path
