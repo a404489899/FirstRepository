@@ -1,0 +1,58 @@
+テーブル操作関連
+********************
+postgres           *
+********************
+
+・接続
+psql -h hostname -U username -d databasename
+
+ ロカール接続
+psql -U username
+
+・切断
+\q
+
+・データベース一覧
+¥l
+
+・データベース接続
+\c databasename
+・ユーザ(ロール)作成
+CREATE ROLE role_name WITH LOGIN PASSWORD 'password'
+	option
+		SUPERUSER
+		CREATEDB
+		CREATEROLE
+・権限追加
+GRANT 権限 ON 対象 TO 誰に
+GRANT SELECT, UPDATE, INSERT ON table_name TO role_name;
+・ユーザ情報確認
+\du
+・権限情報確認
+\z
+
+・dump
+pg_dump -h hostname -p port -U username -d databasename -f fileName
+
+・リストア
+psql -h hostname -p port -U username -d databasename < fileName
+
+
+********************
+MySQL              *
+********************
+・接続
+mysql -u root -p
+・切断
+quit
+・データベース選択
+USE db_name;
+・ユーザ作成
+CREATE USER user IDENTIFIED BY [PASSWORD] 'password';
+	※'username'@'hostname'を指定
+・権限追加
+GRANT 権限 ON レベル TO user;
+GRANT ALL ON *.* TO user;
+
+データベースレベル:
+GRANT 権限 ON db_name.* TO user;
