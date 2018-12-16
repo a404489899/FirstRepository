@@ -1,0 +1,109 @@
+*********************
+spring boot
+*********************
+<parent>
+	<groupId>org.springframework.boot</>
+	<arifactId>spring-boot-starter-parent>
+	<version>1.4.2.RELEASE</>
+</>
+
+<dependencies>
+	<groupId>org.springframework.boot</>
+	<artifactId>spring-boot-starer-web>
+</dependencies>
+
+
+・メインクラスの設定
+@SpringbootApplication
+SpringAppliation.run(mainClass.class,args);
+
+・ controllerクラスの作成
+	@RestController
+	@RequestMapping("/hello")	public String sayHi(){
+		return "Hi";
+	}
+
+*******************
+javascript 関連
+*******************
+・default exprot 
+export defalut class Test{}
+
+improt Test from 'moduleName';
+・name exprot
+exprot class Test{}
+improt {Test} from 'moduleName';
+
+・object clone
+let first = [1,2,3];
+let seconde = [...first];
+
+・extends
+exprot class TestChirden extends Test{}
+
+*****************
+Node.js
+*****************
+・Node.jsにはWindow　Objcetがない　Globalのみ
+
+・モジュールのエクスポート
+module.exports.name = exportするオブジェクト
+・モジュールのインポート
+require('./name.js')
+
+・events
+EventEmitter = require('events');
+
+const emitter = new EventEmitter();
+
+//イベント登録
+emitter.on('logged',function(eventsParameter){
+	console.log('aaa');
+});
+
+//イベント呼び出し
+emitter.emit('name of event',eventAguments);
+
+・sever
+const http = require'http';
+const server = http.createServer();
+
+server.on('connection',
+
+**************
+react
+**************
+npm i -g create-react-app@1.52
+
+create-react-app react-app-name
+
+・componentのstate属性は直接変更することができず、bindする必要がある
+test = () =>{
+	this.setState({value : this.state.value + 1});
+};
+
+・parent componentに属性を設定するとchildren componentではpropsという属性に値を設定することができる。
+・childrenを操作するにはparent componentでEventをHandleする必要がある。
+handleDelete = () => {
+
+}
+render (){
+
+	return (
+	<div onDelete = {this.handleDelete} >
+	</div>
+
+childrencomponentでは
+{this.props.onDelete}
+
+・parent functionで　引数を利用するためには参照のchild componentのfunctionでbindする必要がある
+{this.props.onDelete(id)}
+
+****************
+CSS
+****************
+padding:inside
+margin:outside
+box-sizing: border-box
+background-image:url('')
+boder : 1px solid #000;
