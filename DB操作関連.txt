@@ -31,6 +31,18 @@ GRANT SELECT, UPDATE, INSERT ON table_name TO role_name;
 ・権限情報確認
 \z
 
+・列の追加
+ALTER TABLE products ADD COLUMN description text;
+
+・列の削除
+alter table tablename drop columnName cascade;
+
+・制約追加
+ALTER TABLE products ADD CONSTRAINT some_name UNIQUE (product_no);
+ALTER TABLE products ADD FOREIGN KEY (product_group_id) REFERENCES product_groups;
+
+・制約の削除
+ALTER TABLE products DROP CONSTRAINT some_name;
 ・dump
 pg_dump -h hostname -p port -U username -d databasename -f fileName
 
