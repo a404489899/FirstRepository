@@ -1,0 +1,59 @@
+Properties props = new Properties();
+    props.put("mail.smtp.host", this.host);
+    props.put("mail.smtp.port", this.port);
+    props.put("mail.debug", this.isOnDebugMode);
+    props.put("mail.smtp.connectiontimeout", this.timeout);
+    props.put("mail.smtp.timeout", this.timeout);
+
+
+// メール送信の為のセッションを取得する
+            final Session session = Session.getInstance(props, new javax.mail.Authenticator() {
+                protected PasswordAuthentication getPasswordAuthentication() {
+                    return new PasswordAuthentication(mailProperties.getProperty("mail.smtp.id"),
+                                                    mailProperties.getProperty("mail.smtp.pass"));
+                }
+            });
+            session.setDebug(debug); // デバッグ設定をセッションに反映する
+
+/*メソッドにする場合
+private Session createSession(Properties props) {
+    if (this.isEnabledSmtpAuthentication) {
+      props.put("mail.smtp.auth", "true");
+      
+      Authenticator authenticator = new javax.mail.Authenticator() {
+        protected PasswordAuthentication getPasswordAuthentication() {
+          return new PasswordAuthentication(smtpUsername, smtpPassword);
+        }
+      };
+
+// メッセージオブジェクトを作成する
+            final Message msg = new MimeMessage(session);
+            
+            msg.setFrom(new InternetAddress(mailProperties.getProperty(mailType + fromMailAddress))); // 送信元メールアドレスを設定
+            msg.setRecipients(Message.RecipientType.TO, toAddress); // 送信先メールアドレスを設定
+            if (addrList.length != 0) {
+                msg.setRecipients(Message.RecipientType.BCC, addrList); // 送信先メールアドレス(BCC)を設定
+            }
+            msg.setSubject(MessageFormat.format(
+                    mailProperties.getProperty(mailType + massageSubject), systemNm)); // メール件名を設定
+            msg.setSentDate(new Date()); // メール送信日を設定
+            msg.setText(msgText); // メール本文を設定
+
+            
+/*マルチパート利用例
+MimeMultipart multipart=new MimeMultipart();
+   
+// パート1に本文を設定
+MimeBodyPart bodyPart1=new MimeBodyPart();
+bodyPart1.setText("このメールには画像ファイルが添付されています。", "iso-2022-jp");
+multipart.addBodyPart(bodyPart1);  // マルチパートにパート１を追加
+   
+// パート2に画像ファイルを設定
+MimeBodyPart bodyPart2=new MimeBodyPart();
+DataSource dataSource=new FileDataSource("sample.jpeg");
+DataHandler dataHandler=new DataHandler(dataSource);
+bodyPart2.setDataHandler(dataHandler);
+multipart.addBodyPart(bodyPart2);  // マルチパートにパート2を追加
+   
+// メールにマルチパートを設定
+mimeMessage.setContent(multipart);     
