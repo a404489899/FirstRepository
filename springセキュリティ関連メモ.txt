@@ -1,0 +1,83 @@
+
+施設管理例の場合
+
+サービス
+①CustomUserDetailServiceImpl	 implements UserDetailsService
+	loadUserByUsernameのオーバーロード
+	
+	public final UserDetails loadUserByUsername(final String loginId)
+            throws UsernameNotFoundException {
+    ※UserDetailsサービスクラスで認証が成功すると自動的にSecurityContextHolderログインユーザ情報が保存される。
+②ユーザ情報
+LoginUser extends User;
+
+User implements UserDetials;
+
+
+
+
+  var groupUserList = "<spring:escapeBody>${groupUserList}</spring:escapeBody>";
+        if (groupUserList != "") {
+            groupUserListData = JSON.parse(revertSpringEscapeBody(groupUserList));
+        }
+
+/************証明書利用例****************/
+	SSLSocketFactory sslsf = null;
+	final KeyManager[] km = null;
+	X509Certificate trustedCert = null;
+	try (InputStream cert
+	= new FileInputStream(applicationProperties.getProperty("SA004.logout.server.cert.path"))) {
+	trustedCert = (X509Certificate) CertificateFactory.getInstance(x509).generateCertificate(cert);
+	}
+	final KeyStore ks = KeyStore.getInstance(KeyStore.getDefaultType());
+	ks.load(null);
+	ks.setCertificateEntry(alias, trustedCert);
+	final TrustManagerFactory tmf
+	= TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
+	tmf.init(ks);
+	final SSLContext sslContext
+	= SSLContext.getInstance(applicationProperties.getProperty("SA004.logout.sslcontext.alg"));
+	sslContext.init(km, tmf.getTrustManagers(), new SecureRandom());
+	sslsf = sslContext.getSocketFactory();
+	((HttpsURLConnection) connection).setSSLSocketFactory(sslsf);
+
+
+/****暗号化の例*********/
+public static String encrypt(final String encryptKey, final String encryptIv, final String text) {
+        // 変数初期化
+        String strResult = null;
+
+        try {
+            // 文字列をバイト配列へ変換
+            final byte[] byteText = text.getBytes("UTF-8");
+
+            // 暗号化キーと初期化ベクトルをバイト配列へ変換
+            final byte[] byteKey = Base64.decodeBase64(encryptKey);
+            final byte[] byteIv = Base64.decodeBase64(encryptIv);
+
+            // 暗号化キーと初期化ベクトルのオブジェクト生成
+            final SecretKeySpec key = new SecretKeySpec(byteKey, "AES");
+            final IvParameterSpec iv = new IvParameterSpec(byteIv);
+
+            // Cipherオブジェクト生成
+            final Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
+
+            // Cipherオブジェクトの初期化
+            cipher.init(Cipher.ENCRYPT_MODE, key, iv);
+
+            // 暗号化の結果格納
+            final byte[] byteResult = cipher.doFinal(byteText);
+
+            // Base64へエンコード
+            strResult = Base64.encodeBase64String(byteResult);
+            
+※バッファサイズは 1024 つまり1MBが望ましい
+
+/********byteデータの作成例****************/
+
+ByteArrayOutputStream byteArrayOutputStrem = new ByteArrayOutputStream();
+OutputStreamWriter outputStreamWriter = new OutputStreamWriter(byteArrayOutputStrem,charCode);
+
+outputStreamWriter.write(String text);
+
+return byteArrayOutputStrem.toByteArray();

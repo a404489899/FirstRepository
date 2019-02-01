@@ -1,0 +1,81 @@
+処理の流れ
+
+/*****処理表示*****/
+
+
+１．サーバ側でデータの設定
+施設情報データ
+modelAndView.addObject("facilityForms", JsonUtil.fromRecursive(dispData, true));
+ modelAndView.addObject("prefList", prefList);     // 都道府県DL
+ modelAndView.addObject("prefId",   prefId);   // 選択都道府県ID
+
+2.JSONに変更
+JSON.parse(EHR.common.revertSpringEscapeBody(response));
+
+3.入力値に値を設定
+        EHR.common.bindDataTo($("#facility-form"), "", facilityEditJson);
+
+
+
+//施設所属ユーザリスト
+modelAndView.addObject("facBelongUserList", JsonUtil.fromRecursive(facBelongUserList, true));
+
+医療機関番号NULLは不可能
+
+医療機関番号重複チェック
+・登録の場合、全体をチェック
+・更新の場合、自分を除いた分をチェック
+
+final FacilityDto beforeUpdData =
+                faciltyEditService.getFacilityEditData(facilityDto.getFacilityId());
+
+
+  // サーバから取得した入力内容データをFormタグに渡す
+     var response = "<c:out value='${fn:replace(facilityForms,\'\\\\\',\'\\\\\\\\\')}'/>";
+     var facilityEditJson = JSON.parse(EHR.common.revertSpringEscapeBody(response));
+        
+  // 属性別施設数一覧の項目名設定(各項目)
+        var colNames =
+          [
+             "地域利用者ID"
+            ,"ユーザ名"
+          ];
+
+        // 施設所属ユーザの項目名設定(各内容)
+        var colSettingsList =
+          [
+             {name:"userId",   index:"userId",   width:"300", hidden: false, sortable: true}
+            ,{name:"userName", index:"userName", width:"800", hidden: false, sortable: true}
+          ];
+
+        /**
+         * 施設所属ユーザ一覧
+         */
+        $("#facilityBelongUserList").jqGrid({
+            data         : facBelongUserJson,
+            datatype     : "local", // 渡すデータの形式
+            colNames     : colNames,
+            colModel     : colSettingsList,
+            multiselect  : false, // 複数選択不可
+            rowNum       : 10,     // 1ページの表示件数
+            height       : "auto", // 高さ
+            width        : $("#facility-form").width(), // 幅
+            pager        : "facilityBelongUserListPager", // footerのページャー要素のid
+            pagerpos     : "right",
+            recordpos    : "left",
+            shrinkToFit  : true,  // スクロール時にずれる
+            viewrecords  : true,  // ページャの件数を表示
+            <%-- 2018.11 ADD 新EHR 機能拡張 Step1.0開発(障害対応) CLIEUS対応分 START --%>
+            autoencode : true,
+            <%-- 2018.11 ADD 新EHR 機能拡張 Step1.0開発(障害対応) CLIEUS対応分 END --%>
+          });
+        /************ jqGrid作成 END *************/
+        
+        
+        
+          //半角英数記号を判定
+  Pattern p = Pattern.compile("^[\\p{Alnum}|\\p{Punct}]*$");
+  //Pattern p = Pattern.compile("^[\\p{Alnum}|\\p{Punct}]+$");  //空文字をNGとしたい場合
+  Matcher m = p.matcher(str);
+ 
+  return m.find();
