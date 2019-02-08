@@ -1,0 +1,1272 @@
+
+var EHR = EHR || {};
+EHR.common = EHR.common || {
+
+    /**
+     * カスタムアラート（情報）
+     * @ TEW Y.Kawada
+     * @param msg メッセージ
+     */
+    alertInfo : function(msg) {
+        EHR.common.customAlert({
+            title: "情報",
+            message: msg,
+            iconClass: "ui-icon-info",
+            css: {
+                "color" : "rgba(0,0,0,1.0)"
+            }
+        });
+    },
+
+    /**
+     * カスタムアラート（警告）
+     * @ TEW Y.Kawada
+     * @param msg メッセージ
+     */
+    alertWarn : function(msg, callback){
+        EHR.common.customAlert({
+            title: "警告",
+            message: msg,
+            iconClass: "ui-icon-red ui-icon-alert",
+            css: {
+                "color" : "rgba(255,0,0,1.0)"
+            },
+            callback: callback
+        });
+    },
+
+    /**
+     * カスタムアラート共通
+     * @param title タイトル
+     * @param msg メッセージ
+     * @param iconClass アイコンクラス
+     * @param callback コールバック
+     */
+    customAlert : function(options){
+        var $diag = window.top.$("<div></div>");
+        var $iconSpan = $("<div class='ui-icon " + options.iconClass
+                + "' style='float: left; margin-left: 7px; margin-right: 7px;'></div>");
+        var $text = $("<div style='float:left;'></div>");
+        var callback = options.callback;
+
+        $diag.css(options.css);
+        $text.html(options.message);
+        $iconSpan.appendTo($diag);
+        $text.appendTo($diag);
+
+        $diag.dialog({
+            title     : options.title,
+            draggable : true,
+            resizable : false,
+            modal     : true,
+            autoOpen  : true,
+            open      : function() {
+                $("html").css("overflow", "hidden");
+                $(".ui-dialog-titlebar-close").hide();
+            },
+            buttons : {
+                "OK" : {
+                    text  : "OK",
+                    class : "btn btn-primary",
+                    click : function() {
+                        $diag.dialog("close");
+                    }
+                }
+            },
+            close : function(event) {
+                $("html").css("overflow", "auto");
+                $diag.dialog('destroy');
+                $(event.target).remove();
+                if (callback) {
+                    callback();
+                }
+                window.top.focus();
+            },
+            create: function(event) {
+                $diag.dialog({height: "auto", width: "auto"});
+            }
+        });
+    },
+
+    /**
+     * 改行コードをBRに変換
+     * @param str 改行コード
+     * @returns BR
+     */
+    newLineToBr : function(str) {
+        return str.replace(/\n/gi, "<br>");
+    },
+    /*--------------------------------------------------
+      オーバーレイ
+     --------------------------------------------------*/
+    /**
+     *
+     * @param uniqueId
+     * @returns
+     */
+    closeOverlay : function(uniqueId) {
+        var $overlay = $(window.top.document.body).find("#modal-overlay_" + uniqueId);
+        $overlay.remove();
+    },
+
+
+    /**
+     * 何かを表示する際に、背景を押せないようにするためのオーバーレイを表示する。
+     * @param uniqueId オーバーレイ用の固有ID。
+     * @return オーバーレイのjqueryオブジェクト。
+     */
+     showOverlay : function(uniqueId) {
+        var $overlay = $('<div class="modal-overlay" id="modal-overlay_' + uniqueId + '" style="z-index:1;"></div>');
+        $(window.top.document.body).append($overlay);
+        return $overlay;
+    },
+
+    /**
+     * カスタムコンファーム（はい/いいえ）
+     * @ TEW Y.Kawada
+     * @param args 連想配列
+     *                 title: デフォルトは「確認」
+     *                 message:
+     *                 callback: 引数は結果（true:はい、false:いいえ）
+     * @param msg メッセージ
+     * @param res
+     */
+    confirmYesNo :function(args) {
+        var title = args.title ? args.title : "確認";
+        var message = args.message;
+        var callback = args.callback;
+        EHR.common.customConfirm(message, title, "はい", "いいえ", callback);
+
+    },
+
+    /**
+     * 確認ダイアログ.
+     * @ TEW Y.Kawada
+     * message      : ダイアログのメッセージ本文
+     * title        : ダイアログのタイトル
+     * buttonok     : OKボタンのテキスト
+     * buttoncancel : キャンセルボタンのテキスト
+     * response     : コールバック関数を指定する。引数 ok にボタン選択の結果が入る。
+     *                OK ならば true キャンセルならば false となる。
+     *                また、messageがブランクの場合は無条件でtrue となる。
+     * css          : ダイアログのメッセージ本文スタイル
+     */
+    customConfirm : function(message, title, buttonok, buttoncancel, response){
+
+        if (message == "") {
+            response(true);
+            return;
+        }
+
+        var _dlg = window.top.$("<div></div>");
+        var $iconSpan = $("<div class='ui-icon ui-icon-help' style='float:left; margin-left:7px; margin-right:7px;'></div>");
+        var $text = $("<div style='float:left;'></div>");
+
+        $text.html(message);
+        $iconSpan.appendTo(_dlg);
+        $text.appendTo(_dlg);
+
+        var _buttons = {};
+
+        _buttons[buttoncancel]  = {
+                text : buttoncancel,
+                class : "btn btn-primary",
+                click : function() {
+                    window.top.$(this).dialog('close');
+                    if (response) {
+                        response(false);
+                    }
+                }
+        };
+        _buttons[buttonok] = {
+                text : buttonok,
+                class : "btn btn-primary",
+                click : function() {
+                    window.top.$(this).dialog('close');
+                    if (response) {
+                        response(true);
+                    }
+                }
+        };
+
+        _dlg.dialog({
+            modal     : true,
+            draggable : false,
+            title     : title,
+            buttons   : _buttons,
+            open      : function() {
+                $("html").css("overflow", "hidden");
+            },
+            close     : function() {
+                $("html").css("overflow", "auto");
+                _dlg.dialog('destroy');
+                window.top.focus();
+            },
+            create: function(event) {
+                _dlg.dialog({
+                    height: "auto", width: "auto"
+                });
+            }
+        });
+    },
+
+    /**
+     *
+     * ajax通信でデータ取得.
+     * @ CLIEUS
+     * @param url      リクエスト送信URL
+     * @param argArry  リクエストデータ(JSON形式)
+     * @param asyncflg 同期／非同期
+     * @param callback データ取得後のコールバック関数
+     * @returns 取得データ
+     */
+    ajaxRequest : function(url, argArry, asyncflg, callback) {
+        var me = this;
+
+        // HTTPヘッダー
+        var _headers = {};
+        _headers["Content-Type"] = "application/json";
+        _headers["X-Requested-With"] = "XMLHttpRequest"; // SV側のエラーを検知できるようにするため
+
+        // [Spring Security] CSRF対策
+        var token = $("meta[name='_csrf']").attr("content");
+        var header = $("meta[name='_csrf_header']").attr("content");
+        if (token && header) {
+            _headers[header] = token;
+        }
+
+        var arg = JSON.stringify(argArry);
+
+        var $jqxhr = $.ajax({
+            type         : 'POST',
+            url          : url,
+            headers      : _headers,
+            dataType     : 'json',
+            data         : arg,
+            cache        : false,
+            async        : asyncflg,
+            beforeSend   : function() { me.showLoading(); }
+        });
+
+        // Ajax通信成功
+        $jqxhr.done( function( data, textStatus, jqXHR){
+            if (!!data.msg) {
+                // サーバエラー時、ダイアログ表示
+                me.ajaxSvrErr(data);
+
+                if (data.callbackFlg) {
+                    if (!!callback) callback(data);
+                }
+                return;
+            }
+            if (!!callback) callback(data);
+        });
+
+        // Ajax通信失敗
+        $jqxhr.fail( function(jqXHR, textStatus, errorThrown){
+            me.ajaxConnectErr(jqXHR);
+        });
+
+        // Ajax通信完了
+        $jqxhr.always(function() {
+            me.hideLoading();
+        });
+    },
+
+    /**
+     * target内の項目を（jd属性があるものについて）取得し、連想配列（キー：jd属性、値：jQueryのval()の戻り値）を作成する.
+     * ※Springのform:formに倣い、チェックグループ内に一つもチェックがない場合、0長配列でなくキーそのものが登録されません.
+     * またcheckboxと関連づいた値に関し、同名のjd属性を持つcheckboxが複数なければ真偽値、あれば文字列の配列とする.
+     * 　selectタグの場合、jd属性の数（スペースで分割）により、取得値を分ける.
+     * 　下記の場合、jQueryのhtml()の戻り値を使用
+     * ・tdタグ、spanタグ
+     * @param $targets  ターゲット（formタグなど）のjQueryオブジェクト
+     * @param converter サニタイズなどに使用。省略可
+     * @returns
+     */
+    bindDataFrom : function($targets, converter) {
+        var returnValue = {};
+        if (converter === undefined) {
+            converter = function(v){return v;};
+        }
+        $targets.each(function(){
+            var $target = $(this);
+            // ※bindDataToと違い、同jdについても別要素としてループしてますので要注意。
+            $target.find("[id]").each(function(){
+                var $obj = $(this);
+                var id = $obj.prop("id");
+                var key = id.substr(id.indexOf('_') + 1);
+                var value =  $obj.val();
+                if ($obj.prop("type") == "checkbox") {
+                    // チェックボックスの場合 form:checkbox/form:checkboxesライクに
+                    // 同名のがなければ form:checkbox（値はboolean）、
+                    // あれば form:checkboxes（値は string[]）とする。
+                    if ($target.find("[id='" + id + "']").length == 1) {
+                        // 同名のがない
+                        returnValue[key] = converter($obj.prop("checked"));
+                    } else {
+                        // 同名がある＝チェックボックスは複数選択可能のため、
+                        // バインドする値は常に配列とする。
+                        if ($obj.prop("checked")) {
+                            if (returnValue[key] === undefined) {
+                                returnValue[key] = [];
+                            }
+                            returnValue[key].push(converter(value));
+                        }
+                    }
+                } else if ($obj.prop("type") == "radio") {
+                    // ラジオボタンは複数選択不可のため、
+                    // バインドする値は常に非配列とする。
+                    if ($obj.prop("checked")) {
+                        returnValue[$obj.prop("name")] = converter(value);
+                    }
+                } else if (this.tagName == "SELECT") {
+
+                    var arr = this.id.split(" ", 3);
+
+                    if (arr.length == 1) {
+                        var bindDispKey = arr[0];
+                        var bindValue = null;
+                        $.each($(this).find("option"), function(){
+                            if ($(this).prop("selected")) {
+                                bindValue = value;
+                            }
+                        });
+                        returnValue[key] = converter(bindValue);
+                    } else if (arr.length >= 3) {
+                        var bindValueKey = arr[1];
+                        var bindValue = null;
+                        $.each($(this).find("option"), function(){
+                            if ($(this).prop("selected")) {
+                                bindValue = value;
+                            }
+                        });
+                        returnValue[bindValueKey] = converter(bindValue);
+                    }
+                } else if (this.tagName == "TD" || this.tagName == "SPAN"){
+                    returnValue[key] = converter($obj.html());
+
+                } else if (this.tagName == "BUTTON") {
+                    // 設定なし
+                } else if (this.tagName == "DIV") {
+                    // 設定なし
+
+                } else {
+                    returnValue[key] = converter(value);
+                }
+            });
+        });
+        return returnValue;
+    },
+    /**
+     * $target内の項目を、argsのkeyをjd属性（複数指定されていた場合、一つでも含まれるもの）とし、argsのvalueを設定する.
+     * ※または、classに「bindData-*」（* = 項目名）を含むものについても同様とする
+     * @ CLIEUS
+     * @param $targets ターゲット（formタグなど）のjQueryオブジェクト
+     * @param formId ターゲットの画面ID
+     * @param args 連想配列（タグのjd属性にkeyと一致するものを含むタグについてvalueを設定する）
+     *             設定は jQueryオブジェクト.val() メソッドを利用するが、下記例外あり.
+     *             ・input(type=checkbox)タグ
+     *                         同名のjd属性が複数ない場合、valueは真偽値とする.
+     *                         複数ある場合、valueは文字列の配列とし、checkboxのvalue属性がそれらと一致もの全てにチェックをつける.
+     *                         ※同順で、form:checkbox, form:checkboxes タグを模したもの.
+     *             ・input(type=checkbox)タグ
+     *                         valueは文字列とし、radiobuttonのvalue属性がそれと一致する箇所にチェックをつける.
+     *             ・selectタグ
+     *                         jd属性をスペースで分割し、その数によって下記のとおりargsのkeyとバインドする
+     *                         　・3つ以上：それぞれを「項目一覧」「optionのvalue（selected判定対象）」「optionの表示値」（selectタグの中身を書き換える）
+     *                         　・1つ：「optionの表示値（selected判定対象）」（selectタグの中身を書き換えない）
+     *             ・tdタグ、spanタグ
+     *                         jQueryオブジェクト.html() メソッドを使用
+     * @param converter サニタイズなどに使用。省略可
+     */
+    bindDataTo : function($targets, formId, args, converter) {
+        if (converter === undefined) {
+            converter = function(v){return v;};
+        }
+        $targets.each(function(){
+            var $target = $(this);
+            $.each(args, function(key, value){
+                //var formKey = formId + "_" + key;
+                var $objs = $target.find("[id~='" + key + "'],[class~='bindData-" + key + "']");
+                $objs.each(function() {
+                    var $obj = $(this);
+                    if ($obj.prop("type") == "checkbox") {
+                        //  チェックボックスの場合 form:checkbox/form:checkboxesライクに
+                        //  同名のがなければ form:checkbox（値はboolean）、
+                        //  あれば form:checkboxes（値は string[]）とする。
+                        if ($obj.length == 1) {
+                            //  同名のがない
+                            $obj.prop("checked", converter(value));
+                        } else {
+                            //  同名がある＝チェックボックスは複数選択可能のため、
+                            //  バインドする値は常に配列とする。
+                            var elems;
+                            //if ($.isArray(value)) {
+                                elems = value;
+                            //} else {
+                            //    elems = [value];
+                            //}
+                            //  一旦すべてのチェックをoffにする。
+                            $obj.prop("checked", false);
+                            $.each(elems, function(){
+                                //  valueが一致するものにチェックをつける。
+                                $obj.filter("[value='" + converter(this) + "']").prop("checked", true);
+                            });
+                        }
+                    } else if (this.tagName == "SELECT") {
+                        var arr = this.id.split(" ", 3);
+
+                        if (arr.length == 1) {
+                            var bindDispKey = key;
+                            $.each($(this).find("option"), function(){
+                                if ($(this).val() === String(args[bindDispKey])) {
+                                    $(this).prop("selected", true);
+                                }
+                            });
+                        } else if (arr.length >= 3) {
+                            var itemsKey = arr[0];
+                            var bindValueKey = arr[1];
+                            var bindDispKey = arr[2];
+                            var selectHtml = "";
+                            $.each(args[itemsKey], function() {
+                                var selected = "";
+                                if (this.id === String(args[bindValueKey])) {
+                                    selected = "selected";
+                                }
+                                selectHtml += "<option value='" + EHR.common.sanitize(converter(this.id)) + "' " + selected + ">" + EHR.common.sanitize(converter(this.text)) + "</option>";
+                            });
+                            $obj.html(selectHtml);
+                        }
+                    } else if (this.tagName == "TD" || this.tagName == "SPAN") {
+                        $obj.html(EHR.common.sanitize(converter(value)));
+                    } else {
+                        $obj.val(converter(value));
+                    }
+                });
+
+                $objs = $target.find("[name~='" + key + "'],[class~='bindData-" + key + "']");
+                $objs.each(function() {
+                    var $obj = $(this);
+                    if  ($obj.prop("type") == "radio") {
+                        // ラジオボタンは複数選択不可のため、
+                        // バインドする値は常に非配列とする。
+                        $obj.filter("[value='" + converter(value) + "']").prop("checked", true).trigger('change');
+                    }
+                });
+
+            });
+        });
+    },
+    // ---------------------------------------------------------
+    // ajax通信関連↓↓
+    // ---------------------------------------------------------
+    /**
+     * ajax通信でサーバエラー時の振る舞い.
+     * @param dat        : レスポンスデータ（JSON）
+     */
+    ajaxSvrErr : function(dat) {
+        var _msg = dat.msg || "";
+        var _msgKbn = dat.msgKbn || "";
+
+        if (EHR.common.isNullorEmpty(_msg)) {
+            _msg = "サーバでエラーが発生しました。";
+            EHR.common.alertWarn(_msg, _title);
+            return;
+        }
+
+        // ヘッダーにメッセージ表示
+        EHR.common.dispMessage(_msgKbn, _msg);
+    },
+
+    /**
+     *  メッセージ表示
+     *  @param msgKbn
+     *  @param message
+     */
+    dispMessage : function(msgKbn, message){
+
+        var _id = "";
+        var _dispTime = 0;
+        switch(msgKbn){
+            case 'warning':
+                _id = "#message-warning";
+                _dispTime = messageDispTimeWarning;
+                break;
+            case 'information':
+                _id = "#message-information";
+                _dispTime = messageDispTimeInformation;
+                break;
+            case 'success':
+                _id = "#message-success";
+                _dispTime = messageDispTimeSuccess;
+                break;
+            case 'error':
+                _id = "#message-error";
+                _dispTime = messageDispTimeError;
+                break;
+            default:
+                _id = "#message-error";
+                _dispTime = messageDispTimeError;
+                break;
+        }
+
+        $(_id).html(message);
+        $(_id).show();
+
+        var h = $("html,body");
+        h.animate({scrollTop : 0}, {queue : false});
+
+        if (_dispTime != null && _dispTime > 0 ) {
+            setTimeout(function() {
+                $(_id).slideUp();
+            }, _dispTime);
+        }
+    },
+
+    /**
+     *  メッセージ非表示
+     */
+    hideMessage : function(){
+        $("#message-warning").html("");
+        $("#message-warning").hide();
+        $("#message-information").html("");
+        $("#message-information").hide();
+        $("#message-success").html("");
+        $("#message-success").hide();
+        $("#message-error").html("");
+        $("#message-error").hide();
+    },
+
+    /**
+     * ajax通信でサーバデータダウンロード.
+     * @param url        : リクエスト送信URL
+     * @param argArry    : リクエストデータ(JSON形式)
+     * @param callback   : ダウンロード後のコールバック関数
+     */
+    ajaxDownload : function(url, argArry, callback) {
+        var me = this;
+
+        var arg = JSON.stringify(argArry);
+
+        var _xhr = new XMLHttpRequest();
+
+        _xhr.onloadstart = function(_e) {
+            me.showLoading();
+        };
+
+        // Ajax通信成功
+        _xhr.onload = function(_e) {
+            if (this.status == 200) {
+                var _filename = me.getContentDispositionFileName(_xhr);
+                if (_filename.length > 0 ) {
+                    // 自動ダウンロード
+                    if (window.navigator.msSaveBlob) {
+                        window.navigator.msSaveBlob(_xhr.response, _filename);
+                    } else {
+                        var _a = document.createElement("a");
+                        var _body = document.getElementsByTagName("body")[0];
+                        _body.appendChild(_a);
+                        if ( _a ) {
+                            if ( _a.download ) {
+                                _a.download = _filename;
+                            } else {
+                                _a.setAttribute('download', _filename);
+                            }
+                            _a.href = URL.createObjectURL(_xhr.response);
+                            _a.target = '_blank';
+                            _a.click();
+                        }
+                        _body.removeChild(_a);
+                    }
+
+                } else {
+                    var _fr = new FileReader();
+
+                    _fr.onloadend = function(_e) {
+                        var _jsonObj = null;
+                        var _json = _fr.result || '';
+                        if( _json ){
+                            _jsonObj = me.parseJSON(_json);
+                        }
+
+                        me.ajaxSvrErr(_jsonObj);
+                    };
+
+                    _fr.readAsText(_xhr.response);
+
+                    return;
+                }
+
+                if (!!callback) callback();
+
+            } else {
+                me.ajaxConnectErr(_xhr);
+            }
+        };
+
+        // Ajax通信失敗
+        _xhr.onerror = function(_e) {
+            me.ajaxConnectErr(_xhr);
+        };
+        _xhr.onabort = function(_e) {
+            me.ajaxConnectErr(_xhr);
+        };
+        _xhr.ontimeout = function(_e) {
+            me.ajaxConnectErr(_xhr);
+        };
+
+        // Ajax通信完了
+        _xhr.onloadend = function(_e) {
+            me.hideLoading();
+        };
+
+
+        _xhr.open("POST", url, true);
+        _xhr.setRequestHeader("X-Requested-With", "XMLHttpRequest"); //  SV側のエラーを検知できるようにするため
+        _xhr.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
+        // [Spring Security] CSRF対策
+        var token = $("meta[name='_csrf']").attr("content");
+        var header = $("meta[name='_csrf_header']").attr("content");
+        if (token && header) {
+        _xhr.setRequestHeader(header, token);
+        }
+
+        _xhr.responseType = "blob";
+
+        _xhr.send(arg);
+
+    },
+
+    /**
+     * ajax通信でクライアントデータアップロード.
+     * @param url            : リクエスト送信URL
+     * @param requestData    : リクエストデータ(フォーム形式)
+     * @param data           : コールバック関数
+     */
+    ajaxUpload : function (url, requestData, callback) {
+        var me = this;
+
+        // フォームデータ
+        //var formData = new FormData(requestData);
+
+        // HTTPヘッダー
+        var _headers = {};
+        _headers["X-Requested-With"] = "XMLHttpRequest"; //  SV側のエラーを検知できるようにするため
+
+        // [Spring Security] CSRF対策
+        var token = $("meta[name='_csrf']").attr("content");
+        var header = $("meta[name='_csrf_header']").attr("content");
+        if (token && header) {
+            _headers[header] = token;
+        }
+
+        var $jqxhr = $.ajax({
+            type         : "POST",                  // HTTP通信の種類
+            url          : url,                     // Request送信先
+            dataType     : "json",                  // Responseの型
+            data         : requestData,             // Request時に送信するデータ
+            headers      : _headers,
+            processData  : false,
+            contentType  : false,
+            beforeSend   : function() { me.showLoading(); }
+        });
+
+        // Ajax通信成功
+        $jqxhr.done( function( data, textStatus, jqXHR){
+            if (!!data.msg) {
+                // サーバエラー時、ダイアログ表示
+                me.ajaxSvrErr(data);
+
+                if (data.callbackFlg) {
+                    if (!!callback) callback(data);
+                }
+                return;
+            }
+            if (!!callback) callback(data);
+        });
+
+        // Ajax通信失敗
+        $jqxhr.fail( function(jqXHR, textStatus, errorThrown){
+            me.ajaxConnectErr(jqXHR);
+        });
+
+        // Ajax通信完了
+        $jqxhr.always(function() {
+            me.hideLoading();
+        });
+
+    },
+
+    /**
+     * JSONオブジェクト変換.
+     * @param txt          :JSON文字列
+     * @return  JSONオブジェクト
+     */
+    parseJSON : function(txt) {
+        var _obj = null;
+
+        try{
+            _obj = JSON.parse( text );
+            return _obj;
+        }catch( err ) {}
+        try {
+            _obj = eval('(' + txt + ')');
+        } catch( err ) {
+            _obj = null;
+        }
+        return _obj;
+    },
+
+    /**
+     * レスポンスヘッダのContent-Dispositionからファイル名取得.
+     * @param xhr          :XMLHttpRequestオブジェクト
+     * @return  ファイル名
+     */
+    getContentDispositionFileName : function(xhr) {
+        var _fileName = "";
+
+        var _disposition = xhr.getResponseHeader("Content-Disposition");
+        if (_disposition && _disposition.indexOf('attachment') !== -1) {
+            var _filenameRegex = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/;
+            var _matches = _filenameRegex.exec(_disposition);
+            if (_matches != null && _matches[1]) {
+                _fileName = _matches[1].replace(/['"]/g, '');
+            }
+        }
+        return _fileName;
+    },
+    /**
+     * サーバ接続エラー時の振る舞い.
+     */
+    ajaxConnectErr : function(jqXHR){
+        var _errCode = jqXHR.getResponseHeader("mpierrcd");
+        if (!!_errCode) {
+            location.href = "/MPI_AdminManager/ajaxError.html?errcd=" + _errCode;
+        } else {
+            EHR.common.alertWarn("サーバ接続に失敗しました。", "システムエラー");
+        }
+    },
+
+    /**
+     * 指定の書式の文字列と引数から、文字列をフォーマット.
+     * @ CLIEUS
+     * @param text フォーマット用文字列（{0}, {1}, {2}...:引数, {br}:改行タグ）
+     * @param ... フォーマット用引数
+     * @returns フォーマットされた文字列
+     */
+    format : function(text /*, ...*/) {
+        var ret = text;
+        for (var i = 1; i < arguments.length; i++) {
+            ret = ret.replace(new RegExp("\\{" + (i - 1) + "\\}", "g"), arguments[i]);
+        };
+        ret = ret.replace(new RegExp("(\\{br\\})|(\\n)", "g"), "<br/>");
+        return ret;
+    },
+
+    // =======================================================-
+    // ローディング
+    // =======================================================-
+    showLoading : function() {
+        var $loading = $(".loading");
+        $loading.removeClass("is-hide");
+    },
+
+    hideLoading : function() {
+        var $loading = $(".loading");
+        $loading.addClass("is-hide");
+    },
+
+
+    // =======================================================-
+    // 補助系
+    // =======================================================-
+    /**
+     * 対象文字列変数がNULLもしくは、空文字か判定
+    * @param str        : 対象文字列
+     * @return true:NULLもしくは空文字 false:データあり
+     */
+    isNullorEmpty : function(str) {
+        if (str) {
+            if (str.length > 0) {
+                return false;
+            }
+        }
+        return true;
+    },
+    /**
+     * 型を判定する.
+     * @param type 型名（undefined, nullも可）
+     * @param target 判定対象
+     * @return targetの型がtypeならtrue.
+     */
+    typeIs : function(type, target) {
+        if (type === "undefined") {
+            return target === undefined;
+        } else if (type === "null") {
+            return target === null;
+        }
+        var clazz = Object.prototype.toString.call(target).slice(8, -1);
+        return clazz === type;
+    },
+
+    // =======================================================-
+    // 画面遷移処理
+    // =======================================================-
+    /**
+     * 画面遷移処理(POST送信)
+     * @param url      : 遷移先URL
+     * @param sendData : 渡したい値
+     */
+    screenTransition : function (url, sendData) {
+        $.form = function(s)
+        {
+          var def = {
+            type: 'get',
+            url: location.href,
+            data: {}
+          };
+
+          s = jQuery.extend(true, s, jQuery.extend(true, {}, def, s));
+
+          var form = $('<form>')
+            .attr({
+              'method': s.type,
+              'action': s.url
+            })
+            .appendTo(document.body);
+
+          for (var a in s.data) {
+            $('<input>')
+              .attr({
+                'name': a,
+                'value': s.data[a]
+              })
+              .appendTo(form[0]);
+          };
+
+          form[0].submit();
+        };
+
+        var token = $("meta[name='_csrf']").attr("content");
+        var header = $("meta[name='_csrf_header']").attr("content");
+        var param = $("meta[name='_csrf_parameter']").attr("content");
+
+        var data = {};
+        data     = sendData;
+        data[param]     = token;
+
+        $.form({
+            type: 'post',
+            url: url,
+            data: sendData,
+        });
+    },
+
+
+    /**
+     * 新規ウインドウで画面遷移処理(POST送信)
+     * @param url      : 遷移先URL
+     * @param sendData : 渡したい値
+     */
+    screenTransitionNewWindow : function (url, sendData) {
+        $.form = function(s)
+        {
+          var def = {
+            type: 'get',
+            url: location.href,
+            data: {}
+          };
+
+          s = jQuery.extend(true, s, jQuery.extend(true, {}, def, s));
+
+          var form = $('<form id="transitionForm">')
+            .attr({
+              'method': s.type,
+              'action': s.url,
+              'target' : "_blank"
+            })
+            .appendTo(document.body);
+
+          for (var a in s.data) {
+            $('<input>')
+              .attr({
+                'name': a,
+                'value': s.data[a]
+              })
+              .appendTo(form[0]);
+          };
+
+          form[0].submit();
+        };
+
+        var token = $("meta[name='_csrf']").attr("content");
+        var header = $("meta[name='_csrf_header']").attr("content");
+        var param = $("meta[name='_csrf_parameter']").attr("content");
+
+        var data = {};
+        data     = sendData;
+        data[param]     = token;
+
+        $.form({
+            type: 'post',
+            url: url,
+            data: sendData,
+        });
+        $("#transitionForm").remove();
+    },
+
+    /**
+     * エスケープ文字をHTMLの特殊文字に変換します。
+    revertSpringEscapeBody : function (str) {
+        return str.replace(/&amp;/g, '&').replace(/&#038;/g, '&').replace(/&lt;/g, '<').replace(/&#060;/g, '<')
+        .replace(/&gt;/g, '>').replace(/&#062;/g, '>').replace(/&quot;/g, '"').replace(/&#034;/g, '"')
+        .replace(/&#039;/g, '\'').replace(/&yen;/g, '\\').replace(/&#165;/g, '\\');
+    },
+
+    sanitize : function(obj, preventDouble) {
+        //    bindDataToなどでも本関数が利用できるように、文字列以外の引数が渡された場合の対応をおこなう
+        if (obj == undefined) {
+            return undefined;
+        }
+        if (EHR.common.typeIs("Boolean", obj)) {
+            return obj;
+        } else if (EHR.common.typeIs("Number", obj)) {
+            return obj;
+        }
+        if (preventDouble === undefined || preventDouble) {
+            //    二重掛け防止
+            obj = EHR.common.revertSpringEscapeBody(obj);
+        }
+        return obj.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;')
+            .replace(/\\/g, '&yen;');
+    },
+
+    /**
+     * ドロップダウンリストをtext値で選択する.
+     */
+    changeDropDownListByText : function (parentSelector, childtext) {
+        $.each($("select"+parentSelector+" "+"option:contains('"+childtext+"')" ),function(){
+            if($(this).text().trim()==childtext){
+                $(this).parent('select').val($(this).val());
+            }
+        });
+    },
+
+    //---------------------------------
+    // 業務共通処理
+    //---------------------------------
+    /**
+     * 不明時の医療機関番号/介護保険事業所番号を電話番号から取得する.
+     **/
+    getUnknownMediFacNo : function (telNo) {
+
+        var mediFacNo = '0';
+        mediFacNo += telNo;
+        mediFacNo =mediFacNo.replace(/[\-−ー―?‐\(\)（）\s]/gi, '').replace(/[^a-z0-9-\s]/gi, '');
+        if(mediFacNo.length>10){
+            mediFacNo = mediFacNo.substring(0, 10);
+        }
+
+        return mediFacNo;
+    },
+
+    /**
+     * 一覧画面の編集ボタン名取得処理
+     */
+    getEditButtonName : function (ownEdit, ownDel, otherEdit, otherDel, ownFlg) {
+        var type = 0;
+        if (ownEdit && !otherEdit) {
+            if ((ownDel && !otherDel) || (!ownDel && !otherDel)) {
+                type = 2;
+            } else if ((!ownDel && otherDel) || (ownDel && otherDel)) {
+                type = 3;
+            }
+        } else if (!ownEdit && otherEdit) {
+            if ((ownDel && !otherDel) || (ownDel && otherDel)) {
+                type = 3;
+            } else if ((!ownDel && otherDel) || (!ownDel && !otherDel)) {
+                type = 1;
+            }
+        } else if (ownEdit && otherEdit) {
+            type = 3;
+        } else if (!ownEdit && !otherEdit) {
+            if (ownDel && !otherDel) {
+                type = 2;
+            } else if (!ownDel && otherDel) {
+                type = 1;
+            } else if (ownDel && otherDel) {
+                type = 3;
+            } else if (!ownDel && !otherDel) {
+                type = 0;
+            }
+        }
+
+
+        var buttonName = "";
+        switch (type) {
+        case 0:
+            buttonName = "閲覧"
+            break;
+        case 1:
+            if (ownFlg) {
+                buttonName = "閲覧"
+            } else {
+                buttonName = "編集"
+            }
+            break;
+        case 2:
+            if (ownFlg) {
+                buttonName = "編集"
+            } else {
+                buttonName = "閲覧"
+            }
+            break;
+        case 3:
+            buttonName = "編集"
+            break;
+        }
+        return buttonName;
+    },
+    /**
+     * 対象文字列の末尾が、特定の文字列かどうか判定.
+     **/
+    endMatch : function (val, pattern) {
+
+        if((val.lastIndexOf(pattern)+pattern.length===val.length)&&(pattern.length<=val.length)){
+            return true;
+        }
+        return false;
+    },
+}
+
+/*--------------------------------------------------
+        ajax通信
+--------------------------------------------------*/
+/**
+ * Spring SecurityのCSRF対策によるトークンをajax通信向け対応.
+ * および、通信中ダイアログ表示処理.
+ * @ TEW S.Ishiguro
+ * @param e
+ * @param xhr
+ * @param options
+ */
+$(document).ajaxSend(function(e, xhr, options) {
+    options.url = addCsrf(options.url);
+    openLoadingDialog();
+});
+
+/**
+ * ajax通信終了時の通信中ダイアログ非表示処理.
+ * @ TEW S.Ishiguro
+ * @param e
+ * @param xhr
+ * @param options
+ * @returns
+ */
+$(document).ajaxComplete(function(e, xhr, options) {
+    closeLoadingDialog();
+});
+
+/*--------------------------------------------------
+        通信中ダイアログ
+--------------------------------------------------*/
+/**
+ * 通信中ダイアログを表示する.
+ * @ TEW S.Ishiguro
+ */
+function openLoadingDialog() {
+    // 既に通信中ダイアログが存在する場合は何もしない
+    if ($("#loadingDialog").length) {
+        return;
+    }
+
+    var $diag = $("<div id='loadingDialog'><br><img id='loading' />しばらくお待ちください。<div>");
+
+    $diag.dialog({
+        draggable : true,
+        resizable : false,
+        closeOnEscape: false,
+        modal: true,
+        autoOpen : true,
+        title: "通信中",
+        open: function() {
+            $(".ui-dialog-titlebar-close").hide();
+        }
+    });
+}
+
+function closeLoadingDialog() {
+    setTimeout(function() {
+        $("#loadingDialog").remove();
+    },100);
+}
+/*$.fn.hasScrollBar = function() {
+    return this.get(0) ? this.get(0).scrollHeight > this.innerHeight() : false;
+}*/
+
+/**
+ * URLにCSRF対策用のトークンを付与します.
+ * @ TEW S.Ishiguro
+ * @param url URL
+ * @returns トークン付きのURL
+ */
+function addCsrf(url) {
+    var csrfName = $("meta[name='_csrf_parameterName']").attr("content");
+    var csrfToken = $("meta[name='_csrf_token']").attr("content");
+    if (url.indexOf("?") > -1) {
+        return url + "&" + csrfName + "=" + csrfToken;
+    } else {
+        return url + "?" + csrfName + "=" + csrfToken;
+    }
+}
+
+/**
+ * 画面トップに情報メッセージ表示.
+ * @ TEW Y.Kawada
+ * @param type
+ *     <ul>
+ *         <li>1:削除</li>
+ *         <li>2:登録</li>
+ *         <li>3:更新</li>
+ *     </ul>
+ */
+function showMessageSuccess(type) {
+    var content = "";
+
+    switch (type) {
+        case 1:
+            content = "削除が完了しました。";
+            break; //deleted
+        case 2:
+            content = "登録が完了しました。";
+            break; //created
+        case 3:
+            content = "更新が完了しました。";
+            break; //updated
+    }
+    $("#message-success").html(content);
+    $("#message-success").show();
+    $("#message-success").css({
+        "display":"-ms-grid",
+        "width":"auto"
+    });
+    setTimeout(function() {
+        $("#message-success").slideUp();
+    }, 50000);
+}
+
+/**
+ * 画面トップにエラーメッセージ表示.
+ * @ TEW Y.Kawada
+ * @param errMsg エラーメッセージ
+ */
+function showMessageError(errMsg) {
+    $("#message-error").html(errMsg);
+    $("#message-error").show();
+    $("#message-error").css({
+        "display":"-ms-grid",
+        "width":"auto"
+    });
+    setTimeout(function() {
+        $("#message-error").slideUp();
+    }, 50000);
+}
+
+/**
+ * ダイアログトップにエラーメッセージ表示.
+ * @ TEW Y.Kawada
+ * @param errMsg エラーメッセージ
+ * @param id 表示させる要素のID
+ */
+function showMessageErrorDialog(errMsg, id) {
+    $("#" + id).html(errMsg);
+    $("#" + id).show();
+    $("#" + id).css({
+        "display":"-ms-grid",
+        "width":"auto"
+    });
+    setTimeout(function() {
+        $("#" + id).slideUp();
+    }, 50000);
+}
+
+/**
+ * 入力項目背景色の変更.
+ * @ TEW Y.Kawada
+ * @param control
+ */
+function addBgChangeData(control) {
+    starus_edit_data_patient_sammary = true;
+    $(control).css("background-color", "#FFADC8");
+    $(control).attr("changeBg", "1");
+}
+
+/**
+ * jqGridのリロードを行う。
+ * @param id id属性 例：<table id=hoge></table＞の場合、hogeを指定
+ * @param jsonData jSON形式のデータ
+ */
+function jqGridReload(id, jsonData) {
+    $(".ui-pg-button").removeClass("ui-state-disabled");
+    $("#" + id).clearGridData();
+    $("#" + id).setGridParam({data: jsonData});
+    $("#" + id).trigger("reloadGrid");
+}
+
+(function ($) {
+    //jQuery loadのオーバーライド
+    var originalVal = $.fn.load;
+
+    /**
+     * jQuery loadのオーバーライド.
+     *
+     * url          : URL
+     * data         : データ
+     * callback     : コールバック関数を指定する。
+     */
+    $.fn.load = function(url,data,callback) {
+        this.html('<img src="/ChatUser/image/ajax-loader.gif"></img>');
+
+        var $ret = undefined;
+        $ret = originalVal.call(this,url,data, function(response, status, xhr){
+            if (status == "error") {
+                window.open("/ChatUser/error.html", "_top");
+                return $ret;
+            }else if (status == "timeout") {
+                $(this).load(url,data,callback);
+            }else{
+                $(this).initElemnts(function(){
+                    $(this).fadeIn(500);
+                });
+                if (callback != undefined) {
+                    callback(true);
+               }
+            }
+        });
+};
+
+    /**
+     * 要素共通の初期化処理.
+     *
+     */
+    $.fn.initElemnts = function(){
+        //コンテンツヘッダの装飾
+        var $headers = $(this).find(".contentWrap h2").addClass("ui-widget-header");
+        $headers.css("margin", "-10px -10px 20px -10px");
+    };
+})(jQuery);
+
+/**
+ * リダイレクトのチェックを行う。
+ * @param xhr XMLHttpRequest
+ */
+function checkRedirect(xhr){
+    var ct = xhr.getResponseHeader("content-type") || "";
+    if (ct.indexOf('html') > -1) {
+        closeLoadingDialog();
+        location.href = "sessionTimeout.html";
+    }
+}
+
+;

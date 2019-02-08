@@ -1,0 +1,51 @@
+利用モジュール
+core-3.3.0.jar
+javase-3.3.0.jar
+
+/************************
+QRコード読込み
+*************************
+
+//読み取りたい画像ファイルの保存場所
+        String filePath = "qr_code.png";
+
+        //読み取り処理
+        BufferedImage image = ImageIO.read(new File(filePath));
+        LuminanceSource source = new BufferedImageLuminanceSource(image);
+        BinaryBitmap bitmap = new BinaryBitmap(new HybridBinarizer(source));
+        Reader reader = new MultiFormatReader();
+        Result decodeResult = reader.decode(bitmap);
+        
+        
+        //デコード処理
+        String result = decodeResult.getText();
+        //標準出力
+        System.out.format("読み取り結果=%1$s", result);
+        
+        
+/***********************************
+2次元QRコード作成
+***********************************
+
+public class Main {
+  public static void main(String[] args) {
+    try {
+      String contents = "http://photo.oscasierra.net";
+      BarcodeFormat format = BarcodeFormat.QR_CODE;
+      int width = 160;
+      int height = 160;
+
+      Hashtable hints = new Hashtable();
+      hints.put(EncodeHintType.ERROR_CORRECTION, ErrorCorrectionLevel.M);
+
+      QRCodeWriter writer = new QRCodeWriter();
+      BitMatrix bitMatrix = writer.encode(contents, format, width, height, hints);
+      BufferedImage image = MatrixToImageWriter.toBufferedImage(bitMatrix);
+      ImageIO.write(image, "png", new File("barcode.png"));
+    }
+    catch( IOException e ) {
+      e.printStackTrace();
+    }
+    catch (WriterException e) {
+      e.printStackTrace();
+    }
