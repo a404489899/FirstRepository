@@ -1,0 +1,32 @@
+ChannelSftp sftp = null;
+JSch jsch = new JSch();
+Session sshSession = jsch.getSession(LOGIN_NAME, FTP_IP, FTP_PORT);
+sshSession.setPassword(PASSWORD);
+sshSession.setConfig("StrictHostKeyChecking", "no");
+sshSession.connect();
+Channel channel = sshSession.openChannel("sftp");
+channel.connect();
+sftp = (ChannelSftp) channel;
+InputStream is = sftp.get("/ftp/re/20140713.dat");
+BufferedReader reader = new BufferedReader(new InputStreamReader(is));
+
+
+
+            JSch jsch = new JSch();  
+            jsch.getSession(username, host, port);  
+            sshSession = jsch.getSession(username, host, port);  
+            sshSession.setPassword(password);  
+            Properties sshConfig = new Properties();  
+            sshConfig.put("StrictHostKeyChecking", "no");  
+            sshSession.setConfig(sshConfig);  
+            sshSession.connect();  
+            LOG.debug("Session connected!");  
+            channel = sshSession.openChannel("sftp");  
+            channel.connect();  
+            LOG.debug("Channel connected!");  
+            sftp = (ChannelSftp) channel;  
+            Vector<?> vector = sftp.ls(dir);  
+            for (Object item:vector) {  
+                LsEntry entry = (LsEntry) item;  
+                System.out.println(entry.getFilename());  
+            }  

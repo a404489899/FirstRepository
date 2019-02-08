@@ -49,7 +49,11 @@ pg_dump -h hostname -p port -U username -d databasename -f fileName
 ・リストア
 psql -h hostname -p port -U username -d databasename < fileName
 
-
+・暗号化モジュールインストール
+	\dn スキーマ一覧
+	create extension pgcrypto with schema public;
+	\dx インストール済み拡張一覧
+	
 ********************
 MySQL              *
 ********************
