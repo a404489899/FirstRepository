@@ -12,6 +12,9 @@ psql -U username
 ・切断
 \q
 
+・データベース作成
+create database database_name;
+
 ・データベース一覧
 ¥l
 
@@ -23,6 +26,9 @@ CREATE ROLE role_name WITH LOGIN PASSWORD 'password'
 		SUPERUSER
 		CREATEDB
 		CREATEROLE
+・暗号化モジュール作成
+CREATE EXTENSION pgcrypto
+
 ・権限追加
 GRANT 権限 ON 対象 TO 誰に
 GRANT SELECT, UPDATE, INSERT ON table_name TO role_name;
